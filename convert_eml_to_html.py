@@ -4,7 +4,6 @@ import os
 import base64
 import re
 
-
 def fix_meta_charset(html_content):
     """
     Le HTML source contient une balise <meta charset> héritée de l'email
@@ -31,7 +30,6 @@ def fix_meta_charset(html_content):
             flags=re.IGNORECASE
         )
     return html_content
-
 
 def eml_to_html(eml_file, html_file):
     with open(eml_file, 'rb') as f:
@@ -86,7 +84,6 @@ def eml_to_html(eml_file, html_file):
     with open(html_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
 
-
 def main():
     eml_file = input("Veuillez entrer le chemin du fichier EML : ")
 
@@ -100,7 +97,6 @@ def main():
     eml_to_html(eml_file, html_file)
 
     print(f"Le fichier HTML a été enregistré sous : {html_file}")
-
 
 if __name__ == "__main__":
     main()
