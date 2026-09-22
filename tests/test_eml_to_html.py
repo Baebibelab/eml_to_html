@@ -259,3 +259,99 @@ class TestMainExitCodes:
         )
         monkeypatch.setattr(sys, 'argv', ['eml_to_html.py', str(tmp_path)])
         assert eml_to_html_main() == 1
+
+
+class TestSanitizer:
+    PAYLOADS = [
+        ('script block', '<p>Texte</p><script>alert(1)</script>', '<p>Texte</p>'),
+        ('img onerror', '<img src="x" onerror="alert(1)">', '<img src="x" />'),
+        ('javascript href', '<a href="javascript:alert(1)">clic</a>', '<a>clic</a>'),
+        ('obfuscated href', '<a href="  jaVaScRiPt&#58;alert(1)">clic</a>', '<a>clic</a>'),
+        ('iframe', '<iframe src="https://evil.com"></iframe>', ''),
+        ('meta refresh',
+         '<meta http-equiv="refresh" content="0;url=https://evil.com">',
+         '<meta />'),
+        ('form', '<form action="https://evil.com"><input type="password" name="pw"></form>', ''),
+        ('onclick', '<div onclick="steal()">clic</div>', '<div>clic</div>'),
+        ('comment', '<p>a</p><!-- <script>alert(1)</script> --><p>b</p>', '<p>a</p><p>b</p>'),
+        ('nested skip', '<script>if (1 < 2) { alert("<b>") }</script><p>ok</p>', '<p>ok</p>'),
+        ('unclosed script', '<script>alert(1)<p>suite</p>', ''),
+        ('style expression', '<div style="color: expression(alert(1))">x</div>', '<div>x</div>'),
+        ('style js url',
+         '<div style="background: url(javascript:alert(1))">x</div>',
+         '<div>x</div>'),
+        ('data html', '<a href="data:text/html,<script>alert(1)</script>">x</a>', '<a>x</a>'),
+    ]
+
+    @staticmethod
+    def _eml_with(html_body):
+        msg = EmailMessage()
+        msg['Subject'] = 'Test sanitize'
+        msg['From'] = 'a@example.com'
+        msg['To'] = 'b@example.com'
+        msg.set_content('fallback')
+        msg.add_alternative(html_body, subtype='html')
+        return msg
+
+    def test_payloads_neutralized_via_convert(self, tmp_path):
+        for name, payload, expected in self.PAYLOADS:
+            html_body = f'<html><head></head><body>{payload}</body></html>'
+            eml_path = write_eml(tmp_path, self._eml_with(html_body))
+            result = EmlToHtmlConverter(eml_path, sanitize=True).convert()
+            body = result.split('<body>', 1)[1].rsplit('</body>', 1)[0]
+            assert body.strip() == expected.strip(), f'{name}: {body!r} != {expected!r}'
+
+    def test_safe_content_preserved(self, tmp_path):
+        html_body = (
+            '<html><head><meta charset="utf-8"></head><body>'
+            '<h1 class="t">Titre</h1>'
+            '<table><tr><td align="center">cell</td></tr></table>'
+            '<img src="cid:logo@example.com" alt="logo" width="10">'
+            '<a href="https://example.com" target="_blank">site</a>'
+            '<img src="data:image/png;base64,AAA">'
+            '<div style="color: red">ok</div>'
+            '</body></html>'
+        )
+        msg = self._eml_with(html_body)
+        msg.get_payload()[1].add_attachment = None
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path, sanitize=True).convert()
+        assert 'Titre' in result
+        assert '<table><tr><td align="center">cell</td></tr></table>' in result
+        assert 'src="cid:logo@example.com"' in result
+        assert 'href="https://example.com"' in result
+        assert 'src="data:image/png;base64,AAA"' in result
+        assert 'style="color: red"' in result
+        assert 'charset=UTF-8' in result
+
+    def test_disabled_by_default(self, tmp_path):
+        html_body = '<html><head></head><body><script>alert(1)</script></body></html>'
+        eml_path = write_eml(tmp_path, self._eml_with(html_body))
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert '<script>alert(1)</script>' in result
+
+    def test_cid_images_embedded_then_sanitized(self, tmp_path):
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'img'
+        msg.attach(MIMEText('fallback', 'plain', 'utf-8'))
+        msg.attach(MIMEText(
+            '<html><head></head><body>'
+            '<img src="cid:logo@example.com" onerror="alert(1)"></body></html>',
+            'html', 'utf-8'))
+        image = MIMEImage(PNG_1PX, _subtype='png')
+        image.add_header('Content-ID', '<logo@example.com>')
+        msg.attach(image)
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path, sanitize=True).convert()
+        assert 'src="data:image/png;base64,' in result
+        assert 'onerror' not in result
+
+    def test_cli_flag(self, tmp_path, monkeypatch):
+        html_body = '<html><head></head><body><script>alert(1)</script></body></html>'
+        eml_path = write_eml(tmp_path, self._eml_with(html_body))
+        monkeypatch.setattr(sys, 'argv', ['eml_to_html.py', str(eml_path), '--sanitize'])
+        assert eml_to_html_main() == 0
+        out = (tmp_path / 'test.html').read_text(encoding='utf-8')
+        assert '<script>' not in out
