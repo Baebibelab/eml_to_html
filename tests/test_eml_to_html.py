@@ -2,6 +2,7 @@ import base64
 import subprocess
 import sys
 from email.message import EmailMessage
+from email.mime.application import MIMEApplication
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -355,3 +356,129 @@ class TestSanitizer:
         assert eml_to_html_main() == 0
         out = (tmp_path / 'test.html').read_text(encoding='utf-8')
         assert '<script>' not in out
+
+
+class TestAttachments:
+    @staticmethod
+    def _eml_with_attachment(html_body, filename, content=b'%PDF-fake', subtype='pdf'):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'avec PJ'
+        msg['From'] = 'a@example.com'
+        msg['To'] = 'b@example.com'
+        msg.attach(MIMEText('fallback', 'plain', 'utf-8'))
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        att = MIMEApplication(content, _subtype=subtype)
+        att.add_header('Content-Disposition', 'attachment', filename=filename)
+        msg.attach(att)
+        return msg
+
+    def test_listed_in_html_by_default(self, tmp_path):
+        msg = self._eml_with_attachment(
+            '<html><head></head><body><p>Corps</p></body></html>', 'rapport.pdf'
+        )
+        eml_path = write_eml(tmp_path, msg)
+        converter = EmlToHtmlConverter(eml_path)
+        out = converter.save(tmp_path / 'out.html')
+        html_out = Path(out).read_text(encoding='utf-8')
+        assert 'Pièces jointes' in html_out
+        assert 'rapport.pdf' in html_out
+        assert 'application/pdf' in html_out
+        assert 'Ko' in html_out or ' o' in html_out
+        assert not (tmp_path / 'out_pieces-jointes').exists()
+
+    def test_extract_flag_writes_files_and_links(self, tmp_path):
+        msg = self._eml_with_attachment(
+            '<html><head></head><body><p>Corps</p></body></html>', 'rapport.pdf'
+        )
+        eml_path = write_eml(tmp_path, msg)
+        converter = EmlToHtmlConverter(eml_path, extract_attachments=True)
+        out = converter.save(tmp_path / 'out.html')
+        att_dir = tmp_path / 'out_pieces-jointes'
+        extracted = list(att_dir.iterdir())
+        assert len(extracted) == 1
+        assert extracted[0].name == 'rapport.pdf'
+        assert extracted[0].read_bytes() == b'%PDF-fake'
+        html_out = Path(out).read_text(encoding='utf-8')
+        assert 'télécharger' in html_out
+        assert 'out_pieces-jointes/rapport.pdf' in html_out
+
+    def test_path_traversal_neutralized(self, tmp_path):
+        msg = self._eml_with_attachment(
+            '<html><head></head><body><p>Corps</p></body></html>',
+            '../../etc/passwd.docx', content=b'evil'
+        )
+        eml_path = write_eml(tmp_path, msg)
+        converter = EmlToHtmlConverter(eml_path, extract_attachments=True)
+        converter.save(tmp_path / 'out.html')
+        att_dir = tmp_path / 'out_pieces-jointes'
+        names = [p.name for p in att_dir.iterdir()]
+        assert names == ['passwd.docx']
+        assert (att_dir / 'passwd.docx').read_bytes() == b'evil'
+        assert not (tmp_path / 'etc').exists()
+        assert not Path('/workspace/etc/passwd.docx').exists()
+
+    def test_duplicate_filenames_deduplicated(self, tmp_path):
+        msg = MIMEMultipart()
+        msg['Subject'] = 'doublons'
+        msg['From'] = 'a@example.com'
+        msg['To'] = 'b@example.com'
+        msg.attach(MIMEText('<html><head></head><body><p>x</p></body></html>', 'html', 'utf-8'))
+        for content in (b'premier', b'second'):
+            att = MIMEApplication(content, _subtype='pdf')
+            att.add_header('Content-Disposition', 'attachment', filename='doc.pdf')
+            msg.attach(att)
+        eml_path = write_eml(tmp_path, msg)
+        converter = EmlToHtmlConverter(eml_path, extract_attachments=True)
+        converter.save(tmp_path / 'out.html')
+        att_dir = tmp_path / 'out_pieces-jointes'
+        names = sorted(p.name for p in att_dir.iterdir())
+        assert names == ['doc-2.pdf', 'doc.pdf']
+        assert (att_dir / 'doc.pdf').read_bytes() == b'premier'
+        assert (att_dir / 'doc-2.pdf').read_bytes() == b'second'
+
+    def test_inline_images_not_listed_as_attachments(self, tmp_path):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'inline'
+        msg['From'] = 'a@example.com'
+        msg['To'] = 'b@example.com'
+        msg.attach(MIMEText('fallback', 'plain', 'utf-8'))
+        msg.attach(MIMEText(
+            '<html><head></head><body>'
+            '<img src="cid:logo@example.com"></body></html>', 'html', 'utf-8'
+        ))
+        image = MIMEImage(PNG_1PX, _subtype='png')
+        image.add_header('Content-ID', '<logo@example.com>')
+        msg.attach(image)
+        eml_path = write_eml(tmp_path, msg)
+        converter = EmlToHtmlConverter(eml_path)
+        out = converter.save(tmp_path / 'out.html')
+        html_out = Path(out).read_text(encoding='utf-8')
+        assert 'Pièces jointes' not in html_out
+        assert 'data:image/png;base64,' in html_out
+
+    def test_plain_text_with_attachment(self, tmp_path):
+        m = EmailMessage()
+        m['Subject'] = 'plain'
+        m['From'] = 'a@example.com'
+        m['To'] = 'b@example.com'
+        m.set_content('texte seul')
+        m.add_attachment(b'%PDF-3', maintype='application', subtype='pdf', filename='doc.pdf')
+        eml_path = write_eml(tmp_path, m)
+        converter = EmlToHtmlConverter(eml_path)
+        out = converter.save(tmp_path / 'out.html')
+        html_out = Path(out).read_text(encoding='utf-8')
+        assert 'Pièces jointes' in html_out
+        assert 'doc.pdf' in html_out
+
+    def test_batch_flag(self, tmp_path, monkeypatch):
+        (tmp_path / 'a.eml').write_bytes(
+            self._eml_with_attachment(
+                '<html><head></head><body><p>x</p></body></html>', 'f.pdf', content=b'X'
+            ).as_bytes()
+        )
+        monkeypatch.setattr(sys, 'argv',
+                            ['eml_to_html.py', str(tmp_path), '--extract-attachments'])
+        assert eml_to_html_main() == 0
+        assert (tmp_path / 'a_pieces-jointes' / 'f.pdf').exists()
+        html_out = (tmp_path / 'a.html').read_text(encoding='utf-8')
+        assert 'télécharger' in html_out
