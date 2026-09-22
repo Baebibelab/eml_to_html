@@ -6,6 +6,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [2.1.0] - Non publié
 
 ### Ajouté
+- Gestion des pièces jointes non-image : listées en pied du HTML généré (nom, type MIME, taille)
+- Flag `--extract-attachments` : sauvegarde les pièces jointes dans un dossier `<html>_pieces-jointes/`
+  avec nettoyage des noms de fichiers (traversée de chemin neutralisée, doublons suffixés)
 - Option `--sanitize` (CLI, `EmlToHtmlConverter(sanitize=True)` et `batch_convert(sanitize=True)`) :
   retire les scripts, handlers d'événements, iframes, formulaires, meta refresh et URI `javascript:`
   du HTML de sortie via une liste blanche stdlib pure (`html.parser.HTMLParser`)

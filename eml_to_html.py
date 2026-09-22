@@ -192,10 +192,12 @@ class EmlToHtmlConverter:
         re.IGNORECASE
     )
 
-    def __init__(self, eml_path: str, sanitize: bool = False):
+    def __init__(self, eml_path: str, sanitize: bool = False, extract_attachments: bool = False):
         self.eml_path = Path(eml_path)
         self.msg = None
         self.sanitize = sanitize
+        self.extract_attachments = extract_attachments
+        self.attachment_dir = None
 
     def load(self):
         with open(self.eml_path, 'rb') as f:
@@ -278,6 +280,92 @@ class EmlToHtmlConverter:
 
         return html_content
 
+    @staticmethod
+    def _safe_filename(name: str, fallback: str = 'piece-jointe') -> str:
+        name = html_module.unescape(name or '')
+        name = name.replace('\\', '/')
+        name = name.split('/')[-1].strip()
+        name = re.sub(r'[\x00-\x1f\x7f"*/:<>?|]', '_', name)
+        name = name.strip('. ')
+        return name or fallback
+
+    @staticmethod
+    def _human_size(size: int) -> str:
+        if size < 1024:
+            return f'{size} o'
+        if size < 1024 * 1024:
+            return f'{size / 1024:.1f} Ko'
+        return f'{size / (1024 * 1024):.1f} Mo'
+
+    def _collect_attachments(self):
+        attachments = []
+        seen_names = {}
+        for part in self.msg.walk():
+            if part.is_multipart() or part.get_content_maintype() == 'multipart':
+                continue
+            if part is self.msg.get_body(preferencelist=('html', 'plain')):
+                continue
+            content_type = part.get_content_type()
+            if content_type in self.IMAGE_TYPES:
+                continue
+            filename = part.get_filename()
+            if not filename:
+                continue
+            payload = part.get_payload(decode=True)
+            if payload is None:
+                continue
+            safe_name = self._safe_filename(filename)
+            seen_names[safe_name] = seen_names.get(safe_name, 0) + 1
+            if seen_names[safe_name] > 1:
+                stem, dot, ext = safe_name.rpartition('.')
+                if not stem:
+                    stem, ext = safe_name, ''
+                    dot = ''
+                safe_name = f'{stem}-{seen_names[safe_name]}{dot}{ext}'
+            attachments.append({
+                'filename': safe_name,
+                'original_name': filename,
+                'content_type': content_type,
+                'size': len(payload),
+                'payload': payload,
+            })
+        return attachments
+
+    def _attachments_html(self, attachments) -> str:
+        if not attachments:
+            return ''
+        rows = []
+        for att in attachments:
+            name = html_module.escape(att['filename'])
+            ctype = html_module.escape(att['content_type'])
+            size = self._human_size(att['size'])
+            link = ''
+            if self.attachment_dir is not None:
+                target = f"{self.attachment_dir.name}/{att['filename']}"
+                target = target.replace('"', '%22')
+                link = f' — <a href="{target}">télécharger</a>'
+            rows.append(
+                f'<li><strong>{name}</strong> ({ctype}, {size}){link}</li>'
+            )
+        section = (
+            '<hr>\n'
+            '<h2>Pièces jointes</h2>\n'
+            f'<ul>\n{chr(10).join(rows)}\n</ul>\n'
+        )
+        return section
+
+    def _write_attachments(self, attachments, html_file: Path):
+        if not attachments:
+            return
+        attachment_dir = html_file.parent / (html_file.stem + '_pieces-jointes')
+        attachment_dir.mkdir(parents=True, exist_ok=True)
+        self.attachment_dir = attachment_dir
+        for att in attachments:
+            target = attachment_dir / att['filename']
+            with open(target, 'wb') as f:
+                f.write(att['payload'])
+            logger.info("Pièce jointe extraite : %s", target)
+
     def convert(self) -> str:
         if self.msg is None:
             self.load()
@@ -289,18 +377,36 @@ class EmlToHtmlConverter:
         html_content = self._decode_body(body_part)
 
         if body_part.get_content_type() == 'text/plain':
-            return self._wrap_plain_text(html_content)
+            html_content = self._wrap_plain_text(html_content)
+        else:
+            html_content = self._fix_meta_charset(html_content)
+            html_content = self._embed_images(html_content)
+            if self.sanitize:
+                html_content = sanitize_html(html_content)
 
-        html_content = self._fix_meta_charset(html_content)
-        html_content = self._embed_images(html_content)
-        if self.sanitize:
-            html_content = sanitize_html(html_content)
+        attachments = self._collect_attachments()
+        if attachments:
+            section = self._attachments_html(attachments)
+            if '</body>' in html_content.lower():
+                idx = html_content.lower().rfind('</body>')
+                html_content = html_content[:idx] + section + html_content[idx:]
+            else:
+                html_content += '\n' + section
         return html_content
 
     def save(self, html_file: Optional[str] = None) -> str:
-        html_content = self.convert()
+        if self.msg is None:
+            self.load()
         if html_file is None:
             html_file = self.eml_path.with_suffix('.html')
+        html_file = Path(html_file)
+
+        attachments = self._collect_attachments()
+        if self.extract_attachments and attachments:
+            self._write_attachments(attachments, html_file)
+
+        html_content = self.convert()
+        self.attachment_dir = None
 
         with open(html_file, 'w', encoding='utf-8') as f:
             f.write(html_content)
@@ -308,7 +414,8 @@ class EmlToHtmlConverter:
         return str(html_file)
 
 
-def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bool = False):
+def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bool = False,
+                   extract_attachments: bool = False):
     """Convertit tous les fichiers .eml d'un dossier. Retourne (réussis, échecs)."""
     input_dir = Path(input_dir)
     output_dir = Path(output_dir) if output_dir else input_dir
@@ -325,7 +432,9 @@ def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bo
     for eml_file in sorted(eml_files):
         try:
             html_file = output_dir / (eml_file.stem + '.html')
-            converter = EmlToHtmlConverter(eml_file, sanitize=sanitize)
+            converter = EmlToHtmlConverter(
+                eml_file, sanitize=sanitize, extract_attachments=extract_attachments
+            )
             converter.save(html_file)
             succeeded += 1
             logger.info("✓ %s → %s", eml_file.name, html_file.name)
@@ -346,6 +455,12 @@ def main():
         help="Retire les éléments actifs du HTML de sortie (scripts, handlers, "
              "iframes, URI javascript:) — recommandé pour des emails non fiables"
     )
+    parser.add_argument(
+        '--extract-attachments',
+        action='store_true',
+        help="Sauvegarde les pièces jointes non-image dans un dossier à côté du HTML "
+             "et les liste en pied de page avec un lien de téléchargement"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -357,14 +472,20 @@ def main():
         return 1
 
     if path.is_dir():
-        succeeded, failed = batch_convert(path, args.output, sanitize=args.sanitize)
+        succeeded, failed = batch_convert(
+            path, args.output,
+            sanitize=args.sanitize,
+            extract_attachments=args.extract_attachments,
+        )
         if failed:
             logger.error("%d fichier(s) en échec sur %d traité(s).", failed, succeeded + failed)
             return 1
         return 0
 
     try:
-        converter = EmlToHtmlConverter(path, sanitize=args.sanitize)
+        converter = EmlToHtmlConverter(
+            path, sanitize=args.sanitize, extract_attachments=args.extract_attachments
+        )
         html_file = converter.save(args.output)
         logger.info("Fichier HTML enregistré : %s", html_file)
     except (OSError, ValueError, UnicodeError) as e:

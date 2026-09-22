@@ -20,6 +20,8 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 - ✅ Suite de tests (`pytest`) et intégration continue (lint `ruff` + tests sur Python 3.9–3.13)
 - 🛡️ Option `--sanitize` : retire les éléments actifs du HTML (scripts, handlers d'événements,
   iframes, formulaires, meta refresh, URI `javascript:`) — sans aucune dépendance externe
+- 📎 Les pièces jointes non-image sont listées en pied du HTML (nom, type, taille) ;
+  `--extract-attachments` les sauvegarde dans un dossier dédié avec liens de téléchargement
 
 ## 📦 Prérequis
 
@@ -90,6 +92,20 @@ l'écriture (liste blanche de balises et d'attributs, implémentation stdlib pur
 
 Le texte visible est toujours préservé. Recommandé pour tout email de source non fiable.
 
+### Pièces jointes
+
+Les pièces jointes non-image (PDF, DOCX, ...) sont automatiquement listées en pied du HTML
+généré : nom, type MIME et taille.
+
+```bash
+python eml_to_html.py email.eml --extract-attachments
+```
+
+Avec `--extract-attachments`, elles sont en plus sauvegardées dans un dossier
+`<nom-du-html>_pieces-jointes/` à côté du fichier HTML, et la section en pied de page
+contient un lien de téléchargement vers chaque fichier. Les noms de fichiers sont nettoyés
+(traversée de chemin neutralisée, doublons suffixés `-2`, `-3`...).
+
 ### Codes de sortie
 
 - `0` : toutes les conversions ont réussi
@@ -111,6 +127,7 @@ succeeded, failed = batch_convert('dossier/')
 | `path` | Chemin d'un fichier `.eml` ou d'un dossier (obligatoire) |
 | `-o`, `--output` | Fichier ou dossier de sortie (optionnel) |
 | `--sanitize` | Retire les éléments actifs du HTML de sortie (scripts, handlers, iframes...) |
+| `--extract-attachments` | Sauvegarde les pièces jointes non-image dans un dossier dédié |
 | `-h`, `--help` | Affiche l'aide |
 
 ## 🧩 Structure du projet
@@ -138,7 +155,8 @@ eml_to_html/
 ## 🐛 Limitations connues
 
 - Seuls les formats d'image suivants sont supportés : JPEG, PNG, GIF, BMP, WEBP
-- Les pièces jointes non-image (PDF, DOCX, etc.) ne sont pas traitées
+- Les pièces jointes non-image sont listées en pied de page (et extraites avec `--extract-attachments`),
+  mais leur contenu n'est pas intégré au HTML
 - Sans `--sanitize`, le HTML généré n'est pas nettoyé (à ouvrir avec précaution si la source
   n'est pas fiable) ; le flag `--sanitize` neutralise les éléments actifs
 - Le mode batch ne traverse pas les sous-dossiers (non récursif)
