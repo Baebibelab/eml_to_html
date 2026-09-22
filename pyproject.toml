@@ -1,3 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eml-to-html"
+version = "2.3.0"
+description = "Convertisseur de fichiers EML en HTML autonome : images inline en base64, sanitization optionnelle, extraction des pièces jointes"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Romain BEAL" },
+]
+keywords = ["eml", "html", "email", "converter", "mime"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Email",
+    "Topic :: Utilities",
+]
+dependencies = []
+
+[project.scripts]
+eml-to-html = "eml_to_html:main"
+
+[tool.setuptools]
+py-modules = ["eml_to_html"]
+
 [tool.ruff]
 target-version = "py38"
 line-length = 100

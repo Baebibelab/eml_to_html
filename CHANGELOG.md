@@ -3,9 +3,10 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
-## [2.1.0] - Non publié
+## [2.3.0] - Non publié
 
 ### Ajouté
+- Paquet pip-installable : métadonnées PEP 621 dans `pyproject.toml`, commande `eml-to-html` (point d'entrée console), zéro dépendance conservée
 - Gestion des pièces jointes non-image : listées en pied du HTML généré (nom, type MIME, taille)
 - Flag `--extract-attachments` : sauvegarde les pièces jointes dans un dossier `<html>_pieces-jointes/`
   avec nettoyage des noms de fichiers (traversée de chemin neutralisée, doublons suffixés)
