@@ -1,5 +1,9 @@
 # EML to HTML Converter
 
+[![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![No Dependencies](https://img.shields.io/badge/dependencies-none-success)](requirements.txt)
+
 Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `.html` autonomes, avec les images inline encodées en base64 directement dans le HTML.
 
 ## ✨ Fonctionnalités
@@ -103,4 +107,19 @@ Ce projet est distribué sous licence [MIT](LICENSE) — à adapter selon la pol
 
 ## 👤 Auteur
 
-Développé par [Romain BEAL]
+Développé par Romain BEAL
+
+## 🔒 Confidentialité et sécurité
+
+⚠️ **Attention** : cet outil traite des fichiers email pouvant contenir des données personnelles ou confidentielles.
+- Aucune donnée n'est envoyée en ligne : tout le traitement est **local**.
+- Ne commitez jamais de vrais fichiers `.eml` contenant des informations sensibles dans ce dépôt (voir `.gitignore`).
+- Le HTML généré n'est pas sanitizé : si vous l'ouvrez dans un navigateur, méfiez-vous des scripts embarqués dans des emails provenant de sources non fiables.
+
+## 🌟 Star History
+
+Si cet outil vous est utile, n'hésitez pas à mettre une ⭐ au dépôt !
+
+## 📬 Contact
+
+Pour toute question, ouvrez une [issue](../../issues) sur ce dépôt.

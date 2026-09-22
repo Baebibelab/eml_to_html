@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+
+# Données sensibles - NE JAMAIS COMMITER DE VRAIS EMAILS
+*.eml
+*.html
+!examples/*.eml
+!examples/*.html
+!README.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets (par précaution)
+.env
+*.key
+*.pem
+config_local.py
