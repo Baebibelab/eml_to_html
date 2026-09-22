@@ -18,6 +18,8 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 - 📝 Les emails sans partie HTML (texte brut) sont convertis en HTML valide avec échappement
 - 🏷️ Correction du `<meta charset>` pour les formes HTML4 (`http-equiv`) et HTML5 (`charset=`)
 - ✅ Suite de tests (`pytest`) et intégration continue (lint `ruff` + tests sur Python 3.9–3.13)
+- 🛡️ Option `--sanitize` : retire les éléments actifs du HTML (scripts, handlers d'événements,
+  iframes, formulaires, meta refresh, URI `javascript:`) — sans aucune dépendance externe
 
 ## 📦 Prérequis
 
@@ -68,6 +70,26 @@ python eml_to_html.py chemin/vers/dossier/ -o chemin/vers/sortie/
 python eml_to_html.py -h
 ```
 
+### Nettoyer le HTML de sortie (`--sanitize`)
+
+```bash
+python eml_to_html.py email.eml --sanitize
+python eml_to_html.py dossier/ --sanitize
+```
+
+Par défaut, le HTML de l'email est recopié tel quel : ouvrir la sortie dans un navigateur peut
+exécuter les scripts qu'il contient. Avec `--sanitize`, les éléments actifs sont retirés avant
+l'écriture (liste blanche de balises et d'attributs, implémentation stdlib pure) :
+
+| Retiré | Conservé |
+|---|---|
+| `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>`, `<link>` | Mise en page, tableaux, styles inoffensifs |
+| Attributs `on...` (`onclick`, `onerror`, ...) | Images inline en base64 (`data:image/...`) |
+| URI `javascript:`, `vbscript:`, `data:text/html` | Liens `http(s):`, `mailto:` |
+| `<meta http-equiv="refresh">`, CSS `expression()` | Balise `<meta charset>` corrigée |
+
+Le texte visible est toujours préservé. Recommandé pour tout email de source non fiable.
+
 ### Codes de sortie
 
 - `0` : toutes les conversions ont réussi
@@ -88,6 +110,7 @@ succeeded, failed = batch_convert('dossier/')
 |---|---|
 | `path` | Chemin d'un fichier `.eml` ou d'un dossier (obligatoire) |
 | `-o`, `--output` | Fichier ou dossier de sortie (optionnel) |
+| `--sanitize` | Retire les éléments actifs du HTML de sortie (scripts, handlers, iframes...) |
 | `-h`, `--help` | Affiche l'aide |
 
 ## 🧩 Structure du projet
@@ -116,7 +139,8 @@ eml_to_html/
 
 - Seuls les formats d'image suivants sont supportés : JPEG, PNG, GIF, BMP, WEBP
 - Les pièces jointes non-image (PDF, DOCX, etc.) ne sont pas traitées
-- Le HTML généré n'est pas sanitizé (à utiliser avec précaution sur des emails de sources non fiables)
+- Sans `--sanitize`, le HTML généré n'est pas nettoyé (à ouvrir avec précaution si la source
+  n'est pas fiable) ; le flag `--sanitize` neutralise les éléments actifs
 - Le mode batch ne traverse pas les sous-dossiers (non récursif)
 
 ## 📄 Licence

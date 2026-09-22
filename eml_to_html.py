@@ -6,10 +6,170 @@ import logging
 import re
 import sys
 from email.policy import default
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import ClassVar, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class HtmlSanitizer(HTMLParser):
+    """Filtre les éléments actifs d'un HTML d'email : scripts, handlers d'événements,
+    iframes, formulaires, meta refresh et URI javascript:.
+
+    Approche liste blanche : seules les balises et attributs explicitement autorisés
+    sont conservés, tout le reste est retiré. Le contenu textuel est préservé."""
+
+    ALLOWED_TAGS: ClassVar[frozenset] = frozenset({
+        'a', 'abbr', 'acronym', 'address', 'area', 'article', 'aside', 'b', 'bdi', 'bdo',
+        'blockquote', 'body', 'br', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd',
+        'del', 'details', 'dfn', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'footer',
+        'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hr', 'html', 'i',
+        'img', 'ins', 'kbd', 'li', 'main', 'map', 'mark', 'meta', 'nav', 'noscript', 'ol',
+        'p', 'pre', 'q', 'rp', 'rt', 'ruby', 's', 'samp', 'section', 'small', 'span',
+        'strike', 'strong', 'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td',
+        'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'tt', 'u', 'ul', 'var', 'wbr',
+    })
+    DROP_WITH_CONTENT: ClassVar[frozenset] = frozenset({
+        'script', 'noscript', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet',
+        'template', 'form', 'input', 'button', 'select', 'textarea', 'option', 'link',
+        'base', 'title',
+    })
+    URL_ATTRIBUTES: ClassVar[frozenset] = frozenset({
+        'href', 'src', 'background', 'data-src', 'poster', 'action', 'formaction', 'cite',
+        'longdesc', 'srcset', 'dynsrc', 'lowsrc', 'xlink:href',
+    })
+    ALLOWED_ATTRIBUTES: ClassVar[frozenset] = frozenset({
+        'abbr', 'accept', 'align', 'alt', 'axis', 'border', 'cellpadding', 'cellspacing',
+        'char', 'charoff', 'charset', 'checked', 'clear', 'color', 'cols', 'colspan',
+        'compact', 'coords', 'datetime', 'dir', 'disabled', 'enctype', 'face', 'frame',
+        'headers', 'height', 'hreflang', 'hspace', 'id', 'ismap', 'label', 'lang',
+        'language', 'maxlength', 'media', 'multiple', 'name', 'noshade', 'nowrap',
+        'open', 'readonly', 'rel', 'rev', 'rows', 'rowspan', 'rules', 'scope', 'shape',
+        'size', 'sizes', 'span', 'start', 'summary', 'tabindex', 'target', 'type',
+        'valign', 'value', 'vspace', 'width', 'class', 'style', 'title', 'role',
+    })
+    DANGEROUS_STYLE: ClassVar = re.compile(
+        r'expression\s*\(|javascript\s*:|vbscript\s*:|-moz-binding|behavior\s*:',
+        re.IGNORECASE
+    )
+
+    _VOID_TAGS: ClassVar[frozenset] = frozenset({
+        'area', 'br', 'col', 'hr', 'img', 'meta', 'source', 'track', 'wbr',
+    })
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.out = []
+        self._skip_depth = 0
+
+    @staticmethod
+    def _is_dangerous_url(value: str) -> bool:
+        value = html_module.unescape(value).strip().lower()
+        value = re.sub(r'[\s\x00-\x1f]+', '', value)
+        dangerous = ('javascript:', 'vbscript:', 'livescript:', 'mocha:')
+        return value.startswith(dangerous) or 'data:text/html' in value
+
+    def _is_allowed_attribute(self, name: str, value: str) -> bool:
+        if name.startswith('on'):
+            return False
+        if name in self.URL_ATTRIBUTES:
+            return not self._is_dangerous_url(value)
+        if name == 'style':
+            return not self.DANGEROUS_STYLE.search(html_module.unescape(value))
+        return name in self.ALLOWED_ATTRIBUTES
+
+    def _clean_attributes(self, tag, attrs):
+        clean_attrs = []
+        for name, value in attrs:
+            if not name:
+                continue
+            lname = name.lower()
+            if value is None:
+                continue
+            if tag == 'meta':
+                if lname == 'charset':
+                    clean_attrs.append((name, value))
+                    continue
+                if lname == 'http-equiv' and value.strip().lower() == 'content-type':
+                    clean_attrs.append((name, value))
+                    continue
+                if lname == 'content' and value.lower().startswith('text/html'):
+                    clean_attrs.append((name, value))
+                    continue
+                continue
+            if self._is_allowed_attribute(lname, value):
+                clean_attrs.append((name, value))
+        return clean_attrs
+
+    def handle_starttag(self, tag, attrs):
+        if self._skip_depth:
+            if tag in self.DROP_WITH_CONTENT and tag not in self.ALLOWED_TAGS:
+                self._skip_depth += 1
+            return
+        if tag in self.DROP_WITH_CONTENT and tag not in self.ALLOWED_TAGS:
+            self._skip_depth = 1
+            return
+        if tag not in self.ALLOWED_TAGS:
+            return
+        clean = self._clean_attributes(tag, attrs)
+        self.out.append(self._build_tag(tag, clean, self_closing=False))
+
+    def _build_tag(self, tag, attrs, self_closing):
+        parts = ['<', tag]
+        for name, value in attrs:
+            if value is None:
+                parts.append(f' {name}')
+            else:
+                escaped = value.replace('"', '&quot;')
+                parts.append(f' {name}="{escaped}"')
+        if self_closing or tag in self._VOID_TAGS:
+            parts.append(' />')
+        else:
+            parts.append('>')
+        return ''.join(parts)
+
+    def handle_startendtag(self, tag, attrs):
+        if self._skip_depth or tag in self.DROP_WITH_CONTENT or tag not in self.ALLOWED_TAGS:
+            return
+        self.out.append(self._build_tag(tag, self._clean_attributes(tag, attrs), self_closing=True))
+
+    def handle_endtag(self, tag):
+        if self._skip_depth:
+            if tag in self.DROP_WITH_CONTENT and tag not in self.ALLOWED_TAGS:
+                self._skip_depth -= 1
+            return
+        if tag in self.ALLOWED_TAGS and tag not in self._VOID_TAGS:
+            self.out.append(f'</{tag}>')
+
+    def handle_data(self, data):
+        if not self._skip_depth:
+            self.out.append(html_module.escape(data, quote=False))
+
+    def handle_entityref(self, name):
+        if not self._skip_depth:
+            self.out.append(f'&{name};')
+
+    def handle_comment(self, data):
+        pass
+
+    def handle_decl(self, decl):
+        if not self._skip_depth and decl and decl.upper().startswith('DOCTYPE'):
+            self.out.append(f'<!{decl}>')
+
+    def result(self) -> str:
+        return ''.join(self.out)
+
+
+def sanitize_html(html_content: str) -> str:
+    """Retire les éléments actifs d'un HTML d'email (scripts, handlers, iframes...)."""
+    sanitizer = HtmlSanitizer()
+    sanitizer.feed(html_content)
+    sanitizer.close()
+    cleaned = sanitizer.result()
+    if HtmlSanitizer.DANGEROUS_STYLE.search(cleaned):
+        cleaned = HtmlSanitizer.DANGEROUS_STYLE.sub('', cleaned)
+    return cleaned
 
 
 class EmlToHtmlConverter:
@@ -32,9 +192,10 @@ class EmlToHtmlConverter:
         re.IGNORECASE
     )
 
-    def __init__(self, eml_path: str):
+    def __init__(self, eml_path: str, sanitize: bool = False):
         self.eml_path = Path(eml_path)
         self.msg = None
+        self.sanitize = sanitize
 
     def load(self):
         with open(self.eml_path, 'rb') as f:
@@ -132,6 +293,8 @@ class EmlToHtmlConverter:
 
         html_content = self._fix_meta_charset(html_content)
         html_content = self._embed_images(html_content)
+        if self.sanitize:
+            html_content = sanitize_html(html_content)
         return html_content
 
     def save(self, html_file: Optional[str] = None) -> str:
@@ -145,7 +308,7 @@ class EmlToHtmlConverter:
         return str(html_file)
 
 
-def batch_convert(input_dir: str, output_dir: Optional[str] = None):
+def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bool = False):
     """Convertit tous les fichiers .eml d'un dossier. Retourne (réussis, échecs)."""
     input_dir = Path(input_dir)
     output_dir = Path(output_dir) if output_dir else input_dir
@@ -162,7 +325,7 @@ def batch_convert(input_dir: str, output_dir: Optional[str] = None):
     for eml_file in sorted(eml_files):
         try:
             html_file = output_dir / (eml_file.stem + '.html')
-            converter = EmlToHtmlConverter(eml_file)
+            converter = EmlToHtmlConverter(eml_file, sanitize=sanitize)
             converter.save(html_file)
             succeeded += 1
             logger.info("✓ %s → %s", eml_file.name, html_file.name)
@@ -177,6 +340,12 @@ def main():
     parser = argparse.ArgumentParser(description="Convertit des fichiers EML en HTML.")
     parser.add_argument('path', help="Chemin d'un fichier .eml ou d'un dossier")
     parser.add_argument('-o', '--output', help="Fichier ou dossier de sortie", default=None)
+    parser.add_argument(
+        '--sanitize',
+        action='store_true',
+        help="Retire les éléments actifs du HTML de sortie (scripts, handlers, "
+             "iframes, URI javascript:) — recommandé pour des emails non fiables"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -188,14 +357,14 @@ def main():
         return 1
 
     if path.is_dir():
-        succeeded, failed = batch_convert(path, args.output)
+        succeeded, failed = batch_convert(path, args.output, sanitize=args.sanitize)
         if failed:
             logger.error("%d fichier(s) en échec sur %d traité(s).", failed, succeeded + failed)
             return 1
         return 0
 
     try:
-        converter = EmlToHtmlConverter(path)
+        converter = EmlToHtmlConverter(path, sanitize=args.sanitize)
         html_file = converter.save(args.output)
         logger.info("Fichier HTML enregistré : %s", html_file)
     except (OSError, ValueError, UnicodeError) as e:

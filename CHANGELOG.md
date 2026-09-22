@@ -6,6 +6,9 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [2.1.0] - Non publié
 
 ### Ajouté
+- Option `--sanitize` (CLI, `EmlToHtmlConverter(sanitize=True)` et `batch_convert(sanitize=True)`) :
+  retire les scripts, handlers d'événements, iframes, formulaires, meta refresh et URI `javascript:`
+  du HTML de sortie via une liste blanche stdlib pure (`html.parser.HTMLParser`)
 - Suite de tests `pytest` (20 tests) couvrant le décodage, les images inline, le mode batch et les codes de sortie
 - CI GitHub Actions : lint `ruff` + tests sur Python 3.9, 3.11 et 3.13
 - Configuration `pyproject.toml` (ruff, pytest)
