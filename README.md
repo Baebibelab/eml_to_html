@@ -31,12 +31,27 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 
 ## 🚀 Installation
 
+### En tant qu'outil installé (recommandé)
+
+```bash
+pip install git+https://github.com/Baebibelab/eml_to_html.git
+```
+
+La commande `eml-to-html` est ensuite disponible depuis n'importe quel dossier :
+
+```bash
+eml-to-html chemin/vers/email.eml
+```
+
+### Sans installation (script autonome)
+
 ```bash
 git clone https://github.com/Baebibelab/eml_to_html.git
 cd eml_to_html
+python eml_to_html.py chemin/vers/email.eml
 ```
 
-Aucune installation de package n'est nécessaire.
+Aucune dépendance externe n'est requise dans les deux cas.
 
 ## 🛠️ Utilisation
 
@@ -111,7 +126,7 @@ contient un lien de téléchargement vers chaque fichier. Les noms de fichiers s
 - `0` : toutes les conversions ont réussi
 - `1` : le chemin n'existe pas, ou au moins une conversion a échoué (utile en script/CI)
 
-### Utiliser comme bibliothèque
+### Utiliser comme bibliothèque (paquet installé)
 
 ```python
 from eml_to_html import EmlToHtmlConverter, batch_convert

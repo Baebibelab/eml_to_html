@@ -8,6 +8,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
+import pytest
+
 from eml_to_html import EmlToHtmlConverter, batch_convert
 from eml_to_html import main as eml_to_html_main
 
@@ -482,3 +484,26 @@ class TestAttachments:
         assert (tmp_path / 'a_pieces-jointes' / 'f.pdf').exists()
         html_out = (tmp_path / 'a.html').read_text(encoding='utf-8')
         assert 'télécharger' in html_out
+
+
+class TestPackaging:
+    def test_entry_point_registered_when_installed(self):
+        pytest.importorskip('importlib.metadata')
+        from importlib.metadata import distribution
+        try:
+            dist = distribution('eml-to-html')
+        except Exception:
+            pytest.skip('paquet non installé dans cet environnement')
+        console = dist.entry_points
+        assert 'eml-to-html' in [ep.name for ep in console if ep.group == 'console_scripts']
+
+    def test_module_has_main_callable(self):
+        import eml_to_html
+        assert callable(eml_to_html.main)
+
+    def test_pyproject_declares_no_dependencies(self):
+        root = Path(__file__).parent.parent
+        content = root.joinpath('pyproject.toml').read_text(encoding='utf-8')
+        assert 'dependencies = []' in content
+        assert '[project.scripts]' in content
+        assert 'eml-to-html = "eml_to_html:main"' in content
