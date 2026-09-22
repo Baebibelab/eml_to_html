@@ -3,6 +3,24 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
+## [2.1.0] - Non publié
+
+### Ajouté
+- Suite de tests `pytest` (20 tests) couvrant le décodage, les images inline, le mode batch et les codes de sortie
+- CI GitHub Actions : lint `ruff` + tests sur Python 3.9, 3.11 et 3.13
+- Configuration `pyproject.toml` (ruff, pytest)
+- Les emails sans partie HTML (texte brut) sont désormais convertis en document HTML valide (échappement + `<br>`)
+- `batch_convert` retourne un tuple `(réussis, échecs)` et la CLI sort avec un code d'erreur non nul en cas d'échec
+- Support de la forme HTML5 `<meta charset="...">` (en plus de la forme `http-equiv`)
+- Détection insensible à la casse des extensions `.eml` en mode batch
+
+### Modifié
+- Le module ne configure plus le logging global à l'import (`logging.basicConfig` déplacé dans `main()`) : utilisable comme bibliothèque
+- Le remplacement des images par nom de fichier ne cible plus que les attributs `src`/`background`/`data-src` (évite de corrompre le texte ou les liens)
+
+### Supprimé
+- Import `os` inutilisé
+
 ## [2.0.0] - 2026-09-22
 
 ### Ajouté

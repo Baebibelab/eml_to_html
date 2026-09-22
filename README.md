@@ -2,7 +2,7 @@
 
 [![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![No Dependencies](https://img.shields.io/badge/dependencies-none-success)](requirements.txt)
+[![No Dependencies](https://img.shields.io/badge/dependencies-none-success)](#-prérequis)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
 Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `.html` autonomes, avec les images inline encodées en base64 directement dans le HTML.
@@ -14,12 +14,16 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 - 🔤 Détection et correction automatique de l'encodage de caractères (UTF-8, ISO-8859-1, etc.)
 - 🏷️ Correction de la balise `<meta charset>` pour un affichage correct dans le navigateur
 - 📁 Traitement par lot avec gestion d'erreurs isolée (un échec n'interrompt pas le reste)
-- 🖥️ Interface en ligne de commande (CLI) simple
+- 🖥️ Interface en ligne de commande (CLI) simple, avec codes de sortie exploitables (0 = succès, 1 = échec)
+- 📝 Les emails sans partie HTML (texte brut) sont convertis en HTML valide avec échappement
+- 🏷️ Correction du `<meta charset>` pour les formes HTML4 (`http-equiv`) et HTML5 (`charset=`)
+- ✅ Suite de tests (`pytest`) et intégration continue (lint `ruff` + tests sur Python 3.9–3.13)
 
 ## 📦 Prérequis
 
 - Python 3.8 ou supérieur
-- Aucune dépendance externe (uniquement la bibliothèque standard Python)
+- Aucune dépendance externe pour l'outil (uniquement la bibliothèque standard Python)
+- `pytest` uniquement pour exécuter les tests (`pip install pytest`)
 
 ## 🚀 Installation
 
@@ -64,6 +68,20 @@ python eml_to_html.py chemin/vers/dossier/ -o chemin/vers/sortie/
 python eml_to_html.py -h
 ```
 
+### Codes de sortie
+
+- `0` : toutes les conversions ont réussi
+- `1` : le chemin n'existe pas, ou au moins une conversion a échoué (utile en script/CI)
+
+### Utiliser comme bibliothèque
+
+```python
+from eml_to_html import EmlToHtmlConverter, batch_convert
+
+html = EmlToHtmlConverter('email.eml').save('sortie.html')
+succeeded, failed = batch_convert('dossier/')
+```
+
 ## 📋 Options
 
 | Option | Description |
@@ -77,6 +95,9 @@ python eml_to_html.py -h
 ```
 eml_to_html/
 ├── eml_to_html.py       # Script principal
+├── tests/               # Suite de tests pytest
+├── .github/workflows/   # CI (ruff + pytest)
+├── pyproject.toml       # Configuration ruff / pytest
 ├── README.md            # Documentation
 ├── LICENSE              # Licence du projet
 ├── CHANGELOG.md         # Historique des versions
@@ -96,6 +117,7 @@ eml_to_html/
 - Seuls les formats d'image suivants sont supportés : JPEG, PNG, GIF, BMP, WEBP
 - Les pièces jointes non-image (PDF, DOCX, etc.) ne sont pas traitées
 - Le HTML généré n'est pas sanitizé (à utiliser avec précaution sur des emails de sources non fiables)
+- Le mode batch ne traverse pas les sous-dossiers (non récursif)
 
 ## 📄 Licence
 

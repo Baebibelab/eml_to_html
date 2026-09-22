@@ -1,0 +1,14 @@
+[tool.ruff]
+target-version = "py38"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "I", "RUF"]
+ignore = [
+    "UP006",  # typing.List/Dict -> list/dict : non disponible avant Python 3.9
+    "UP007",  # Optional[X] -> X | None : non disponible avant Python 3.10
+    "RUF012",  # ClassVar mutable : déjà géré via frozenset/compiled patterns
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
