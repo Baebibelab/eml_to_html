@@ -23,8 +23,8 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/<votre-org>/EML-to-HTML.git
-cd EML-to-HTML
+git clone https://github.com/Baebibelab/eml_to_html.git
+cd eml_to_html
 ```
 
 Aucune installation de package n'est nécessaire.
@@ -34,7 +34,7 @@ Aucune installation de package n'est nécessaire.
 ### Convertir un seul fichier
 
 ```bash
-python EML-to-HTML.py chemin/vers/email.eml
+python eml_to_html.py chemin/vers/email.eml
 ```
 
 Le fichier HTML est créé automatiquement à côté, avec le même nom (`email.html`).
@@ -42,25 +42,25 @@ Le fichier HTML est créé automatiquement à côté, avec le même nom (`email.
 ### Spécifier un fichier de sortie
 
 ```bash
-python EML-to-HTML.py email.eml -o sortie.html
+python eml_to_html.py email.eml -o sortie.html
 ```
 
 ### Convertir un dossier entier (mode batch)
 
 ```bash
-python EML-to-HTML.py chemin/vers/dossier/
+python eml_to_html.py chemin/vers/dossier/
 ```
 
 ### Spécifier un dossier de sortie
 
 ```bash
-python EML-to-HTML.py chemin/vers/dossier/ -o chemin/vers/sortie/
+python eml_to_html.py chemin/vers/dossier/ -o chemin/vers/sortie/
 ```
 
 ### Afficher l'aide
 
 ```bash
-python EML-to-HTML.py -h
+python eml_to_html.py -h
 ```
 
 ## 📋 Options
@@ -74,12 +74,11 @@ python EML-to-HTML.py -h
 ## 🧩 Structure du projet
 
 ```
-EML-to-HTML/
-├── EML-to-HTML.py       # Script principal
+eml_to_html/
+├── eml_to_html.py       # Script principal
 ├── README.md            # Documentation
 ├── LICENSE              # Licence du projet
 ├── CHANGELOG.md         # Historique des versions
-├── CONTRIBUTING.md      # Guide de contribution
 └── .gitignore           # Fichiers ignorés par Git
 ```
 
@@ -97,17 +96,9 @@ EML-to-HTML/
 - Les pièces jointes non-image (PDF, DOCX, etc.) ne sont pas traitées
 - Le HTML généré n'est pas sanitizé (à utiliser avec précaution sur des emails de sources non fiables)
 
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! Voir [CONTRIBUTING.md](CONTRIBUTING.md).
-
 ## 📄 Licence
 
-Ce projet est distribué sous licence [MIT](LICENSE) — à adapter selon la politique interne Eiffage si diffusion restreinte.
-
-## 👤 Auteur
-
-Développé par Romain BEAL
+Ce projet est distribué sous licence [MIT](LICENSE)
 
 ## 🔒 Confidentialité et sécurité
 
@@ -123,3 +114,7 @@ Si cet outil vous est utile, n'hésitez pas à mettre une ⭐ au dépôt !
 ## 📬 Contact
 
 Pour toute question, ouvrez une [issue](../../issues) sur ce dépôt.
+
+## 👤 Auteur
+
+Développé par Romain BEAL
