@@ -495,11 +495,13 @@ class TestPackaging:
         pytest.importorskip('importlib.metadata')
         from importlib.metadata import distribution
         try:
-            dist = distribution('eml-to-html')
+            dist = distribution('eml2html')
         except Exception:
             pytest.skip('paquet non installé dans cet environnement')
         console = dist.entry_points
-        assert 'eml-to-html' in [ep.name for ep in console if ep.group == 'console_scripts']
+        names = [ep.name for ep in console if ep.group == 'console_scripts']
+        assert 'eml2html' in names
+        assert 'eml-to-html' in names
 
     def test_module_has_main_callable(self):
         import eml_to_html
@@ -510,6 +512,7 @@ class TestPackaging:
         content = root.joinpath('pyproject.toml').read_text(encoding='utf-8')
         assert 'dependencies = []' in content
         assert '[project.scripts]' in content
+        assert 'eml2html = "eml_to_html:main"' in content
         assert 'eml-to-html = "eml_to_html:main"' in content
 
 
