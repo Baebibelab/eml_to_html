@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "eml-to-html"
-version = "2.3.0"
+name = "eml2html"
+version = "2.4.0"
 description = "Convertisseur de fichiers EML en HTML autonome : images inline en base64, sanitization optionnelle, extraction des pièces jointes"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -33,6 +33,7 @@ classifiers = [
 dependencies = []
 
 [project.scripts]
+eml2html = "eml_to_html:main"
 eml-to-html = "eml_to_html:main"
 
 [tool.setuptools]

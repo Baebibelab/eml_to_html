@@ -33,16 +33,25 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 
 ## 🚀 Installation
 
-### En tant qu'outil installé (recommandé)
+### Depuis PyPI (recommandé)
+
+```bash
+pip install eml2html
+```
+
+Les commandes `eml2html` et `eml-to-html` (alias) sont ensuite disponibles
+depuis n'importe quel dossier :
+
+```bash
+eml2html chemin/vers/email.eml
+```
+
+Mise à jour : `pip install --upgrade eml2html`
+
+### Depuis GitHub (version de développement)
 
 ```bash
 pip install git+https://github.com/Baebibelab/eml_to_html.git
-```
-
-La commande `eml-to-html` est ensuite disponible depuis n'importe quel dossier :
-
-```bash
-eml-to-html chemin/vers/email.eml
 ```
 
 ### Sans installation (script autonome)
@@ -190,6 +199,12 @@ eml_to_html/
 - Sans `--sanitize`, le HTML généré n'est pas nettoyé (à ouvrir avec précaution si la source
   n'est pas fiable) ; le flag `--sanitize` neutralise les éléments actifs
 - Sans `--recursive`, le mode batch ne traverse pas les sous-dossiers
+
+## 🚢 Publication PyPI
+
+La publication est automatisée : pousser un tag `v*` (ex. `v2.4.0`) déclenche les tests
+puis la publication sur [PyPI](https://pypi.org/project/eml2html/) via GitHub Actions
+(secret `PYPI_API_TOKEN` requis dans les réglages du dépôt).
 
 ## 📄 Licence
 

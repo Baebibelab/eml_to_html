@@ -3,7 +3,25 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
-## [2.3.0] - Non publié
+## [2.4.0] - Non publié
+
+### Ajouté
+- Publication PyPI sous le nom `eml2html` (`eml-to-html` était déjà pris sur PyPI) :
+  `pip install eml2html`
+- Commande `eml2html` ; l'alias `eml-to-html` reste installé
+- Workflow GitHub Actions `publish.yml` : tests + build + publication automatique
+  sur PyPI au push d'un tag `v*` (secret `PYPI_API_TOKEN` requis)
+
+## [2.3.0] - Fusionné
+
+### Ajouté
+- Bloc d'en-têtes en haut du HTML généré : De, À, Cc, Cci (si présent), Date, Objet,
+  avec décodage des MIME encoded-words et échappement HTML (issue #6)
+- Mode batch récursif : flag `-r`/`--recursive`, arborescence recréée en sortie
+- Paquet pip-installable : métadonnées PEP 621 dans `pyproject.toml`,
+  commande console, zéro dépendance conservée
+- Gestion des pièces jointes non-image : listées en pied du HTML généré (nom, type, taille) ;
+  flag `--extract-attachments` avec nettoyage des noms (traversée neutralisée, doublons suffixés)
 
 ### Ajouté
 - Bloc d'en-têtes en haut du HTML généré : De, À, Cc, Cci (si présent), Date, Objet,
