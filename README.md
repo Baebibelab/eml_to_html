@@ -5,7 +5,6 @@
 [![No Dependencies](https://img.shields.io/badge/dependencies-none-success)](#-prérequis)
 [![PyPI](https://img.shields.io/pypi/v/eml2html.svg)](https://pypi.org/project/eml2html/)
 [![CI](https://github.com/Baebibelab/eml_to_html/actions/workflows/ci.yml/badge.svg)](https://github.com/Baebibelab/eml_to_html/actions/workflows/ci.yml)
-
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
 Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `.html` autonomes, avec les images inline encodées en base64 directement dans le HTML.
