@@ -507,3 +507,67 @@ class TestPackaging:
         assert 'dependencies = []' in content
         assert '[project.scripts]' in content
         assert 'eml-to-html = "eml_to_html:main"' in content
+
+
+class TestRecursiveBatch:
+    @staticmethod
+    def _make_tree(tmp_path):
+        (tmp_path / 'a.eml').write_bytes(
+            make_html_eml('<html><head></head><body><p>r a</p></body></html>').as_bytes()
+        )
+        sub = tmp_path / 'archives'
+        sub.mkdir()
+        (sub / 'b.eml').write_bytes(
+            make_html_eml('<html><head></head><body><p>r b</p></body></html>').as_bytes()
+        )
+        deep = sub / '2023'
+        deep.mkdir()
+        (deep / 'c.eml').write_bytes(
+            make_html_eml('<html><head></head><body><p>r c</p></body></html>').as_bytes()
+        )
+
+    def test_non_recursive_ignores_subdirs(self, tmp_path):
+        self._make_tree(tmp_path)
+        succeeded, failed = batch_convert(tmp_path)
+        assert (succeeded, failed) == (1, 0)
+        assert (tmp_path / 'a.html').exists()
+        assert not (tmp_path / 'archives' / 'b.html').exists()
+
+    def test_recursive_converts_all_and_mirrors_tree(self, tmp_path):
+        self._make_tree(tmp_path)
+        succeeded, failed = batch_convert(tmp_path, recursive=True)
+        assert (succeeded, failed) == (3, 0)
+        assert (tmp_path / 'a.html').exists()
+        assert (tmp_path / 'archives' / 'b.html').exists()
+        assert (tmp_path / 'archives' / '2023' / 'c.html').exists()
+
+    def test_recursive_with_output_dir_mirrors_tree(self, tmp_path):
+        self._make_tree(tmp_path)
+        out = tmp_path / 'sortie'
+        succeeded, failed = batch_convert(tmp_path, out, recursive=True)
+        assert (succeeded, failed) == (3, 0)
+        assert (out / 'a.html').exists()
+        assert (out / 'archives' / 'b.html').exists()
+        assert (out / 'archives' / '2023' / 'c.html').exists()
+        assert not (tmp_path / 'a.html').exists()
+
+    def test_recursive_with_extract_attachments(self, tmp_path):
+        sub = tmp_path / 'doss'
+        sub.mkdir()
+        msg = TestAttachments._eml_with_attachment(
+            '<html><head></head><body><p>x</p></body></html>', 'f.pdf', content=b'X'
+        )
+        (sub / 'a.eml').write_bytes(msg.as_bytes())
+        succeeded, failed = batch_convert(
+            tmp_path, extract_attachments=True, recursive=True
+        )
+        assert (succeeded, failed) == (1, 0)
+        att_dir = sub / 'a_pieces-jointes'
+        assert (att_dir / 'f.pdf').exists()
+
+    def test_cli_recursive_flag(self, tmp_path, monkeypatch):
+        self._make_tree(tmp_path)
+        monkeypatch.setattr(sys, 'argv', ['eml_to_html.py', str(tmp_path), '--recursive'])
+        assert eml_to_html_main() == 0
+        assert (tmp_path / 'archives' / 'b.html').exists()
+        assert (tmp_path / 'archives' / '2023' / 'c.html').exists()
