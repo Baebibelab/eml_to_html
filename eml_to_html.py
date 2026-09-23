@@ -415,34 +415,49 @@ class EmlToHtmlConverter:
 
 
 def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bool = False,
-                   extract_attachments: bool = False):
-    """Convertit tous les fichiers .eml d'un dossier. Retourne (réussis, échecs)."""
+                   extract_attachments: bool = False, recursive: bool = False):
+    """Convertit tous les fichiers .eml d'un dossier. Retourne (réussis, échecs).
+
+    En mode récursif, les sous-dossiers sont parcourus et la structure est
+    recréée dans le dossier de sortie."""
     input_dir = Path(input_dir)
     output_dir = Path(output_dir) if output_dir else input_dir
 
-    eml_files = [
-        p for p in input_dir.iterdir()
-        if p.is_file() and p.suffix.lower() == '.eml'
-    ]
+    if recursive:
+        eml_files = sorted(p for p in input_dir.rglob('*.eml') if p.is_file())
+    else:
+        eml_files = sorted(
+            p for p in input_dir.iterdir()
+            if p.is_file() and p.suffix.lower() == '.eml'
+        )
     if not eml_files:
         logger.warning("Aucun fichier .eml trouvé dans %s", input_dir)
         return 0, 0
 
     succeeded, failed = 0, 0
-    for eml_file in sorted(eml_files):
+    for eml_file in eml_files:
         try:
-            html_file = output_dir / (eml_file.stem + '.html')
+            html_file = _output_path_for(eml_file, input_dir, output_dir)
+            html_file.parent.mkdir(parents=True, exist_ok=True)
             converter = EmlToHtmlConverter(
                 eml_file, sanitize=sanitize, extract_attachments=extract_attachments
             )
             converter.save(html_file)
             succeeded += 1
-            logger.info("✓ %s → %s", eml_file.name, html_file.name)
+            logger.info("✓ %s → %s", eml_file, html_file)
         except (OSError, ValueError, UnicodeError) as e:
             failed += 1
             logger.error("✗ Échec pour %s : %s", eml_file.name, e)
 
     return succeeded, failed
+
+
+def _output_path_for(eml_file: Path, input_dir: Path, output_dir: Path) -> Path:
+    """Chemin du HTML de sortie : à plat hors récursif, miroir de l'arborescence en récursif."""
+    if eml_file.parent == input_dir:
+        return output_dir / (eml_file.stem + '.html')
+    relative = eml_file.parent.relative_to(input_dir)
+    return output_dir / relative / (eml_file.stem + '.html')
 
 
 def main():
@@ -461,6 +476,11 @@ def main():
         help="Sauvegarde les pièces jointes non-image dans un dossier à côté du HTML "
              "et les liste en pied de page avec un lien de téléchargement"
     )
+    parser.add_argument(
+        '-r', '--recursive',
+        action='store_true',
+        help="Parcourt aussi les sous-dossiers (l'arborescence est recréée dans la sortie)"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -476,6 +496,7 @@ def main():
             path, args.output,
             sanitize=args.sanitize,
             extract_attachments=args.extract_attachments,
+            recursive=args.recursive,
         )
         if failed:
             logger.error("%d fichier(s) en échec sur %d traité(s).", failed, succeeded + failed)

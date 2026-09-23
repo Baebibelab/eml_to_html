@@ -81,6 +81,16 @@ python eml_to_html.py chemin/vers/dossier/
 python eml_to_html.py chemin/vers/dossier/ -o chemin/vers/sortie/
 ```
 
+### Parcourir les sous-dossiers (mode récursif)
+
+```bash
+python eml_to_html.py chemin/vers/dossier/ --recursive
+```
+
+Sans `--recursive`, seuls les `.eml` directement dans le dossier sont convertis.
+Avec, toute l'arborescence est parcourue et **recréée telle quelle** dans la sortie
+(`archives/2023/email.eml` → `archives/2023/email.html`).
+
 ### Afficher l'aide
 
 ```bash
@@ -143,6 +153,7 @@ succeeded, failed = batch_convert('dossier/')
 | `-o`, `--output` | Fichier ou dossier de sortie (optionnel) |
 | `--sanitize` | Retire les éléments actifs du HTML de sortie (scripts, handlers, iframes...) |
 | `--extract-attachments` | Sauvegarde les pièces jointes non-image dans un dossier dédié |
+| `-r`, `--recursive` | Parcourt aussi les sous-dossiers (arborescence recréée en sortie) |
 | `-h`, `--help` | Affiche l'aide |
 
 ## 🧩 Structure du projet
@@ -174,7 +185,7 @@ eml_to_html/
   mais leur contenu n'est pas intégré au HTML
 - Sans `--sanitize`, le HTML généré n'est pas nettoyé (à ouvrir avec précaution si la source
   n'est pas fiable) ; le flag `--sanitize` neutralise les éléments actifs
-- Le mode batch ne traverse pas les sous-dossiers (non récursif)
+- Sans `--recursive`, le mode batch ne traverse pas les sous-dossiers
 
 ## 📄 Licence
 
