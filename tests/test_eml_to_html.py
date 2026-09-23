@@ -301,7 +301,11 @@ class TestSanitizer:
             html_body = f'<html><head></head><body>{payload}</body></html>'
             eml_path = write_eml(tmp_path, self._eml_with(html_body))
             result = EmlToHtmlConverter(eml_path, sanitize=True).convert()
-            body = result.split('<body>', 1)[1].rsplit('</body>', 1)[0]
+            body = result.split('<body', 1)[1]
+            body = body.split('>', 1)[1]
+            body = body.rsplit('</body>', 1)[0]
+            if '<hr>' in body:
+                body = body.split('<hr>', 1)[1]
             assert body.strip() == expected.strip(), f'{name}: {body!r} != {expected!r}'
 
     def test_safe_content_preserved(self, tmp_path):
@@ -571,3 +575,87 @@ class TestRecursiveBatch:
         assert eml_to_html_main() == 0
         assert (tmp_path / 'archives' / 'b.html').exists()
         assert (tmp_path / 'archives' / '2023' / 'c.html').exists()
+
+
+class TestHeaders:
+    @staticmethod
+    def _eml_with_headers(from_=None, to=None, cc=None, bcc=None, subject='Objet test',
+                          html_body='<html><head></head><body><p>Corps</p></body></html>',
+                          plain=False):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        if from_:
+            msg['From'] = from_
+        if to:
+            msg['To'] = to
+        if cc:
+            msg['Cc'] = cc
+        if bcc:
+            msg['Bcc'] = bcc
+        if plain:
+            msg.attach(MIMEText('texte brut', 'plain', 'utf-8'))
+        else:
+            msg.attach(MIMEText('fallback', 'plain', 'utf-8'))
+            msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        return msg
+
+    def test_headers_shown_in_html(self, tmp_path):
+        msg = self._eml_with_headers(
+            from_='romain@example.com',
+            to='client@example.com, direction@example.com',
+            cc='compta@example.com',
+        )
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert '<table class="eml-headers"' in result
+        assert '<th>De</th>' in result and 'romain@example.com' in result
+        assert '<th>À</th>' in result
+        assert 'client@example.com, direction@example.com' in result
+        assert '<th>Cc</th>' in result and 'compta@example.com' in result
+        assert '<th>Objet</th>' in result and 'Objet test' in result
+        assert '<th>Cci</th>' not in result
+        assert result.index('<table') < result.index('<p>Corps</p>')
+
+    def test_encoded_words_decoded(self, tmp_path):
+        msg = self._eml_with_headers(
+            from_='=?utf-8?Q?Romain_BEAL?= <romain@example.com>',
+            subject='=?utf-8?Q?Rapport_trimestriel_=E2=82=AC?=',
+        )
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert 'Romain BEAL &lt;romain@example.com&gt;' in result
+        assert 'Rapport trimestriel €' in result
+        assert '=?utf-8?' not in result
+
+    def test_bcc_shown_when_present(self, tmp_path):
+        msg = self._eml_with_headers(from_='a@example.com', to='b@example.com',
+                                     bcc='secret@example.com')
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert '<th>Cci</th>' in result
+        assert 'secret@example.com' in result
+
+    def test_headers_in_plain_text_fallback(self, tmp_path):
+        msg = self._eml_with_headers(from_='a@example.com', to='b@example.com', plain=True)
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert '<th>De</th>' in result and 'a@example.com' in result
+        assert '<th>Objet</th>' in result
+
+    def test_headers_survive_sanitize(self, tmp_path):
+        msg = self._eml_with_headers(
+            from_='=?utf-8?Q?Romain?= <r@example.com>',
+            to='c@example.com',
+        )
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path, sanitize=True).convert()
+        assert 'r@example.com' in result
+        assert '<th>Objet</th>' in result
+
+    def test_header_values_escaped(self, tmp_path):
+        msg = self._eml_with_headers(from_='a@example.com', to='b@example.com',
+                                     subject='<script>alert(1)</script>')
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert '<script>' not in result
+        assert '&lt;script&gt;' in result

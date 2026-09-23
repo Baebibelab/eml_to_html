@@ -1,6 +1,7 @@
 import argparse
 import base64
 import email
+import email.header
 import html as html_module
 import logging
 import re
@@ -280,6 +281,54 @@ class EmlToHtmlConverter:
 
         return html_content
 
+    HEADER_FIELDS = (
+        ('From', 'De'),
+        ('To', 'À'),
+        ('Cc', 'Cc'),
+        ('Bcc', 'Cci'),
+        ('Date', 'Date'),
+        ('Subject', 'Objet'),
+    )
+
+    @staticmethod
+    def _decode_header(value: str) -> str:
+        decoded = email.header.decode_header(value)
+        parts = []
+        for text, charset in decoded:
+            if isinstance(text, bytes):
+                for candidate in (charset, 'utf-8', 'iso-8859-1'):
+                    if not candidate:
+                        continue
+                    try:
+                        text = text.decode(candidate)
+                        break
+                    except (UnicodeDecodeError, LookupError):
+                        continue
+                if isinstance(text, bytes):
+                    text = text.decode('iso-8859-1', errors='replace')
+            parts.append(text)
+        return ''.join(parts).strip()
+
+    def _headers_html(self) -> str:
+        rows = []
+        for field, label in self.HEADER_FIELDS:
+            raw_value = self.msg.get(field)
+            if not raw_value:
+                continue
+            value = self._decode_header(str(raw_value))
+            if not value:
+                continue
+            rows.append(
+                f'<tr><th>{label}</th><td>{html_module.escape(value)}</td></tr>'
+            )
+        if not rows:
+            return ''
+        return (
+            '<table class="eml-headers" border="1" cellpadding="4" cellspacing="0">\n'
+            f'{chr(10).join(rows)}\n'
+            '</table>\n<hr>\n'
+        )
+
     @staticmethod
     def _safe_filename(name: str, fallback: str = 'piece-jointe') -> str:
         name = html_module.unescape(name or '')
@@ -383,6 +432,15 @@ class EmlToHtmlConverter:
             html_content = self._embed_images(html_content)
             if self.sanitize:
                 html_content = sanitize_html(html_content)
+
+        headers_section = self._headers_html()
+        if headers_section:
+            if '<body' in html_content.lower():
+                match = re.search(r'<body[^>]*>', html_content, re.IGNORECASE)
+                idx = match.end()
+                html_content = html_content[:idx] + '\n' + headers_section + html_content[idx:]
+            else:
+                html_content = headers_section + html_content
 
         attachments = self._collect_attachments()
         if attachments:
