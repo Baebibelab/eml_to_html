@@ -6,6 +6,8 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 ## [2.3.0] - Non publié
 
 ### Ajouté
+- Bloc d'en-têtes en haut du HTML généré : De, À, Cc, Cci (si présent), Date, Objet,
+  avec décodage des MIME encoded-words (accents, noms non-ASCII) et échappement HTML
 - Mode batch récursif : flag `-r`/`--recursive` (et `batch_convert(recursive=True)`),
   parcours des sous-dossiers avec recréation de l'arborescence dans la sortie
 - Paquet pip-installable : métadonnées PEP 621 dans `pyproject.toml`, commande `eml-to-html` (point d'entrée console), zéro dépendance conservée

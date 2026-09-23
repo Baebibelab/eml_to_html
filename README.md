@@ -22,6 +22,8 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
   iframes, formulaires, meta refresh, URI `javascript:`) — sans aucune dépendance externe
 - 📎 Les pièces jointes non-image sont listées en pied du HTML (nom, type, taille) ;
   `--extract-attachments` les sauvegarde dans un dossier dédié avec liens de téléchargement
+- 📧 Les en-têtes de l'email (De, À, Cc, Cci, Date, Objet) sont affichés en haut du HTML
+  généré, avec décodage des accents et noms encodés (MIME encoded-words)
 
 ## 📦 Prérequis
 
@@ -173,6 +175,8 @@ eml_to_html/
 ## ⚙️ Fonctionnement technique
 
 1. Le fichier `.eml` est chargé via le module `email` de la bibliothèque standard.
+2. Les en-têtes principaux (De, À, Cc, Cci, Date, Objet) sont décodés ( MIME encoded-words)
+   et affichés dans un bloc en haut du HTML généré.
 2. Le corps HTML (ou texte brut en fallback) est extrait et décodé selon le charset déclaré.
 3. La balise `<meta charset>` est corrigée pour correspondre à l'encodage réel (UTF-8).
 4. Les pièces jointes de type image sont parcourues et converties en `data:image/...;base64,...`, puis injectées dans le HTML en remplaçant les références `cid:` ou noms de fichiers.
