@@ -202,12 +202,6 @@ eml_to_html/
   n'est pas fiable) ; le flag `--sanitize` neutralise les éléments actifs
 - Sans `--recursive`, le mode batch ne traverse pas les sous-dossiers
 
-## 🚢 Publication PyPI
-
-La publication est automatisée : pousser un tag `v*` (ex. `v2.4.0`) déclenche les tests
-puis la publication sur [PyPI](https://pypi.org/project/eml2html/) via GitHub Actions
-(secret `PYPI_API_TOKEN` requis dans les réglages du dépôt).
-
 ## 📄 Licence
 
 Ce projet est distribué sous licence [MIT](LICENSE)
