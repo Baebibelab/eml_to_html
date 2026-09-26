@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from eml_to_html import EmlToHtmlConverter, batch_convert
+from eml_to_html import EmlToHtmlConverter, batch_convert, sanitize_html
 from eml_to_html import main as eml_to_html_main
 
 PNG_1PX = base64.b64decode(
@@ -298,6 +298,21 @@ class TestSanitizer:
          '<div style="background: url(javascript:alert(1))">x</div>',
          '<div>x</div>'),
         ('data html', '<a href="data:text/html,<script>alert(1)</script>">x</a>', '<a>x</a>'),
+        ('srcset dangerous url',
+         '<img srcset="a.png 1x, livescript:alert(1) 2x">',
+         '<img />'),
+        ('srcset safe kept',
+         '<img srcset="a.png 1x, b.png 2x">',
+         '<img srcset="a.png 1x, b.png 2x" />'),
+        ('svg data uri blocked',
+         '<img src="data:image/svg+xml;base64,PHN2Zy8+">',
+         '<img />'),
+        ('css expression in style',
+         '<style>a { color: expression(alert(1)) }</style>',
+         '<style>a { color: alert(1)) }</style>'),
+        ('css javascript url in style',
+         '<style>a { background: url(javascript:alert(1)) }</style>',
+         '<style>a { background: url(alert(1)) }</style>'),
     ]
 
     @staticmethod
@@ -382,6 +397,23 @@ class TestSanitizer:
         assert eml_to_html_main() == 0
         out = (tmp_path / 'test.html').read_text(encoding='utf-8')
         assert '<script>alert(1)</script>' in out
+
+    def test_safe_srcset_kept(self):
+        out = sanitize_html('<img srcset="a.png 1x, b.png 2x">')
+        assert 'srcset="a.png 1x, b.png 2x"' in out
+
+    def test_style_content_not_escaped(self):
+        out = sanitize_html('<style>a > b { color: red }</style>')
+        assert '<style>a > b { color: red }</style>' in out
+        assert '&gt;' not in out
+
+    def test_plain_text_javascript_not_altered(self):
+        out = sanitize_html('<p>tapez javascript: void 0</p>')
+        assert 'tapez javascript: void 0' in out
+
+    def test_style_breakout_neutralized(self):
+        out = sanitize_html('<style>a { } </style><script>alert(1)</script>')
+        assert '</style' not in out.split('</style>')[-1]
 
     def test_cli_sanitize_still_accepted(self, tmp_path, monkeypatch):
         html_body = '<html><head></head><body><script>alert(1)</script></body></html>'

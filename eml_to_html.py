@@ -54,6 +54,10 @@ class HtmlSanitizer(HTMLParser):
         r'expression\s*\(|javascript\s*:|vbscript\s*:|-moz-binding|behavior\s*:',
         re.IGNORECASE
     )
+    SAFE_DATA_PATTERN: ClassVar = re.compile(
+        r'data:image/(?:png|jpe?g|gif|bmp|webp);base64,'
+    )
+    STYLE_BREAKOUT_PATTERN: ClassVar = re.compile(r'</\s*style', re.IGNORECASE)
 
     _VOID_TAGS: ClassVar[frozenset] = frozenset({
         'area', 'br', 'col', 'hr', 'img', 'meta', 'source', 'track', 'wbr',
@@ -63,17 +67,27 @@ class HtmlSanitizer(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.out = []
         self._skip_depth = 0
+        self._in_style = False
 
     @staticmethod
     def _is_dangerous_url(value: str) -> bool:
         value = html_module.unescape(value).strip().lower()
         value = re.sub(r'[\s\x00-\x1f]+', '', value)
-        dangerous = ('javascript:', 'vbscript:', 'livescript:', 'mocha:')
-        return value.startswith(dangerous) or 'data:text/html' in value
+        if value.startswith(('javascript:', 'vbscript:', 'livescript:', 'mocha:')):
+            return True
+        if value.startswith('data:'):
+            return HtmlSanitizer.SAFE_DATA_PATTERN.match(value) is None
+        return False
 
     def _is_allowed_attribute(self, name: str, value: str) -> bool:
         if name.startswith('on'):
             return False
+        if name == 'srcset':
+            candidates = [
+                part.strip().split(' ')[0]
+                for part in value.split(',') if part.strip()
+            ]
+            return not any(self._is_dangerous_url(url) for url in candidates)
         if name in self.URL_ATTRIBUTES:
             return not self._is_dangerous_url(value)
         if name == 'style':
@@ -113,6 +127,8 @@ class HtmlSanitizer(HTMLParser):
             return
         if tag not in self.ALLOWED_TAGS:
             return
+        if tag == 'style':
+            self._in_style = True
         clean = self._clean_attributes(tag, attrs)
         self.out.append(self._build_tag(tag, clean, self_closing=False))
 
@@ -140,11 +156,23 @@ class HtmlSanitizer(HTMLParser):
             if tag in self.DROP_WITH_CONTENT and tag not in self.ALLOWED_TAGS:
                 self._skip_depth -= 1
             return
+        if tag == 'style':
+            self._in_style = False
         if tag in self.ALLOWED_TAGS and tag not in self._VOID_TAGS:
             self.out.append(f'</{tag}>')
 
+    @classmethod
+    def _sanitize_css(cls, css: str) -> str:
+        css = html_module.unescape(css)
+        css = cls.DANGEROUS_STYLE.sub('', css)
+        return cls.STYLE_BREAKOUT_PATTERN.sub('', css)
+
     def handle_data(self, data):
-        if not self._skip_depth:
+        if self._skip_depth:
+            return
+        if self._in_style:
+            self.out.append(self._sanitize_css(data))
+        else:
             self.out.append(html_module.escape(data, quote=False))
 
     def handle_entityref(self, name):
@@ -159,6 +187,8 @@ class HtmlSanitizer(HTMLParser):
             self.out.append(f'<!{decl}>')
 
     def result(self) -> str:
+        if self._in_style:
+            self.out.append('</style>')
         return ''.join(self.out)
 
 
@@ -167,10 +197,7 @@ def sanitize_html(html_content: str) -> str:
     sanitizer = HtmlSanitizer()
     sanitizer.feed(html_content)
     sanitizer.close()
-    cleaned = sanitizer.result()
-    if HtmlSanitizer.DANGEROUS_STYLE.search(cleaned):
-        cleaned = HtmlSanitizer.DANGEROUS_STYLE.sub('', cleaned)
-    return cleaned
+    return sanitizer.result()
 
 
 class EmlToHtmlConverter:
