@@ -1,0 +1,31 @@
+From: =?utf-8?Q?Exp=C3=A9diteur_D=C3=A9mo?= <expediteur@example.com>
+To: destinataire@example.com
+Subject: Demo 1 - sanitization
+Date: Fri, 26 Sep 2026 10:00:00 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="SAN"
+
+--SAN
+Content-Type: text/plain; charset=utf-8
+
+Version texte de la demo 1.
+--SAN
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body>
+<h1>Demo sanitization</h1>
+<p>Texte legitime contenant javascript: void 0 (doit rester intact).</p>
+<script>alert('script inline')</script>
+<p onclick="steal()">Paragraphe avec handler</p>
+<a href="javascript:alert(1)">lien javascript</a>
+<a href="https://example.com">lien normal (doit rester)</a>
+<img src="petite.png" onerror="alert(2)" alt="image inline">
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxzY3JpcHQ+YWxlcnQoJ3N2ZycpPC9zY3JpcHQ+PC9zdmc+">
+<img srcset="ok.png 1x, javascript:alert(3) 2x">
+<style>p > span { color: red }</style>
+<style>a { color: expression(alert(4)) }</style>
+<iframe src="https://evil.example"></iframe>
+<form action="https://evil.example"><input name="pw" type="password"></form>
+</body></html>
+--SAN--

@@ -180,6 +180,7 @@ succeeded, failed = batch_convert('dossier/')
 eml_to_html/
 ├── eml_to_html.py       # Script principal
 ├── tests/               # Suite de tests pytest
+├── examples/           # Emails de démo pour test manuel (voir examples/README.md)
 ├── .github/workflows/   # CI (ruff + pytest)
 ├── pyproject.toml       # Configuration ruff / pytest
 ├── README.md            # Documentation
@@ -187,6 +188,13 @@ eml_to_html/
 ├── CHANGELOG.md         # Historique des versions
 └── .gitignore           # Fichiers ignorés par Git
 ```
+
+## 🧪 Tester avec des emails de démo
+
+Le dossier [`examples/`](examples/) contient trois emails **synthétiques et inoffensifs**
+pour tester l'outil en conditions réelles avant d'utiliser vos propres emails :
+sanitization, charset sans `<head>`, pièces jointes actives. Chaque démo a sa
+checklist de points de contrôle — voir [`examples/README.md`](examples/README.md).
 
 ## ⚙️ Fonctionnement technique
 

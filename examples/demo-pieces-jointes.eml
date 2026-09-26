@@ -1,0 +1,29 @@
+From: expediteur@example.com
+To: destinataire@example.com
+Subject: Demo 3 - piece jointe active
+Date: Fri, 26 Sep 2026 10:02:00 +0200
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="MIX"
+
+--MIX
+Content-Type: text/plain; charset=utf-8
+
+Version texte de la demo 3.
+--MIX
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><head></head><body><p>Email avec deux pieces jointes : une page.html (active) et un rapport.pdf (inoffensif).</p></body></html>
+--MIX
+Content-Type: text/html; name="page.html"
+Content-Disposition: attachment; filename="page.html"
+Content-Transfer-Encoding: base64
+
+PGh0bWw+PHNjcmlwdD5hbGVydCgncGllY2Ugam9pbnRlIGFjdGl2ZScpPC9zY3JpcHQ+PC9odG1sPg==
+--MIX
+Content-Type: application/pdf; name="rapport.pdf"
+Content-Disposition: attachment; filename="rapport.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQgZmF1eCBjb250ZW51IHBkZg==
+--MIX--

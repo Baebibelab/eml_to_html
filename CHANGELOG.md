@@ -18,6 +18,12 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
   - Le nettoyage CSS ne s'applique plus au texte visible : un texte légitime contenant
     `javascript:` n'est plus altéré
 
+### Ajouté
+- Dossier `examples/` : trois emails de démonstration synthétiques et inoffensifs
+  (sanitization, charset sans `<head>`, pièces jointes actives) avec checklists de
+  points de contrôle, pour tester l'outil en conditions réelles avant d'utiliser
+  ses propres emails — voir `examples/README.md`
+
 ## [2.5.0] - 2026-09-26
 
 ### Sécurité
