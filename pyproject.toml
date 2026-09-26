@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "eml2html"
 version = "2.4.0"
-description = "Convertisseur de fichiers EML en HTML autonome : images inline en base64, sanitization optionnelle, extraction des pièces jointes"
+description = "Convertisseur de fichiers EML en HTML autonome : images inline en base64, sanitization active par défaut, extraction des pièces jointes"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }

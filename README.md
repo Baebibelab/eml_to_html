@@ -20,8 +20,9 @@ Outil Python pour convertir des fichiers `.eml` (emails exportés) en fichiers `
 - 📝 Les emails sans partie HTML (texte brut) sont convertis en HTML valide avec échappement
 - 🏷️ Correction du `<meta charset>` pour les formes HTML4 (`http-equiv`) et HTML5 (`charset=`)
 - ✅ Suite de tests (`pytest`) et intégration continue (lint `ruff` + tests sur Python 3.9–3.13)
-- 🛡️ Option `--sanitize` : retire les éléments actifs du HTML (scripts, handlers d'événements,
-  iframes, formulaires, meta refresh, URI `javascript:`) — sans aucune dépendance externe
+- 🛡️ Sanitization **active par défaut** : les éléments actifs du HTML (scripts, handlers d'événements,
+  iframes, formulaires, meta refresh, URI `javascript:`) sont retirés automatiquement — sans aucune
+  dépendance externe ; `--no-sanitize` permet de la désactiver
 - 📎 Les pièces jointes non-image sont listées en pied du HTML (nom, type, taille) ;
   `--extract-attachments` les sauvegarde dans un dossier dédié avec liens de téléchargement
 - 📧 Les en-têtes de l'email (De, À, Cc, Cci, Date, Objet) sont affichés en haut du HTML
@@ -110,16 +111,17 @@ Avec, toute l'arborescence est parcourue et **recréée telle quelle** dans la s
 python eml_to_html.py -h
 ```
 
-### Nettoyer le HTML de sortie (`--sanitize`)
+### Sanitization du HTML de sortie (active par défaut)
 
 ```bash
-python eml_to_html.py email.eml --sanitize
-python eml_to_html.py dossier/ --sanitize
+python eml_to_html.py email.eml                # sanitization active
+python eml_to_html.py email.eml --no-sanitize   # la désactiver
 ```
 
-Par défaut, le HTML de l'email est recopié tel quel : ouvrir la sortie dans un navigateur peut
-exécuter les scripts qu'il contient. Avec `--sanitize`, les éléments actifs sont retirés avant
-l'écriture (liste blanche de balises et d'attributs, implémentation stdlib pure) :
+La sanitization est **active par défaut** (CLI, `EmlToHtmlConverter` et `batch_convert`) :
+le HTML de l'email est nettoyé avant l'écriture (liste blanche de balises et d'attributs,
+implémentation stdlib pure), pour que l'ouverture dans un navigateur n'exécute pas les
+scripts qu'il contient. Utilisez `--no-sanitize` uniquement pour des sources de confiance :
 
 | Retiré | Conservé |
 |---|---|
@@ -164,7 +166,8 @@ succeeded, failed = batch_convert('dossier/')
 |---|---|
 | `path` | Chemin d'un fichier `.eml` ou d'un dossier (obligatoire) |
 | `-o`, `--output` | Fichier ou dossier de sortie (optionnel) |
-| `--sanitize` | Retire les éléments actifs du HTML de sortie (scripts, handlers, iframes...) |
+| `--no-sanitize` | Désactive la sanitization du HTML de sortie — active par défaut |
+| `--sanitize` | Obsolète (no-op) : la sanitization est désormais active par défaut |
 | `--extract-attachments` | Sauvegarde les pièces jointes non-image dans un dossier dédié |
 | `-r`, `--recursive` | Parcourt aussi les sous-dossiers (arborescence recréée en sortie) |
 | `-h`, `--help` | Affiche l'aide |
@@ -198,8 +201,11 @@ eml_to_html/
 - Seuls les formats d'image suivants sont supportés : JPEG, PNG, GIF, BMP, WEBP
 - Les pièces jointes non-image sont listées en pied de page (et extraites avec `--extract-attachments`),
   mais leur contenu n'est pas intégré au HTML
-- Sans `--sanitize`, le HTML généré n'est pas nettoyé (à ouvrir avec précaution si la source
-  n'est pas fiable) ; le flag `--sanitize` neutralise les éléments actifs
+- Le HTML généré est sanitizé par défaut ; avec `--no-sanitize` il ne l'est pas (à ouvrir avec
+  prudence si la source n'est pas fiable)
+- Avec `--extract-attachments`, les pièces jointes aux extensions actives (`.html`, `.svg`,
+  `.xml`, `.mht`, ...) sont renommées avec un suffixe `.txt` pour éviter l'exécution de leur
+  contenu à l'ouverture
 - Sans `--recursive`, le mode batch ne traverse pas les sous-dossiers
 
 ## 📄 Licence
@@ -211,7 +217,7 @@ Ce projet est distribué sous licence [MIT](LICENSE)
 ⚠️ **Attention** : cet outil traite des fichiers email pouvant contenir des données personnelles ou confidentielles.
 - Aucune donnée n'est envoyée en ligne : tout le traitement est **local**.
 - Ne commitez jamais de vrais fichiers `.eml` contenant des informations sensibles dans ce dépôt (voir `.gitignore`).
-- Le HTML généré n'est pas sanitizé : si vous l'ouvrez dans un navigateur, méfiez-vous des scripts embarqués dans des emails provenant de sources non fiables.
+- Le HTML généré est sanitizé par défaut : les scripts embarqués dans des emails non fiables sont neutralisés. Ne désactivez la sanitization (`--no-sanitize`) que pour des sources de confiance.
 
 ## 🌟 Star History
 

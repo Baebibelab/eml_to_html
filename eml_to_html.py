@@ -193,7 +193,7 @@ class EmlToHtmlConverter:
         re.IGNORECASE
     )
 
-    def __init__(self, eml_path: str, sanitize: bool = False, extract_attachments: bool = False):
+    def __init__(self, eml_path: str, sanitize: bool = True, extract_attachments: bool = False):
         self.eml_path = Path(eml_path)
         self.msg = None
         self.sanitize = sanitize
@@ -242,13 +242,19 @@ class EmlToHtmlConverter:
         html_content = self.CHARSET_PATTERN.sub(new_meta, html_content, count=1)
         if new_meta in html_content:
             return html_content
-        return re.sub(
-            r'(<head[^>]*>)',
-            r'\1\n' + new_meta,
-            html_content,
-            count=1,
-            flags=re.IGNORECASE
-        )
+        if re.search(r'<head[^>]*>', html_content, re.IGNORECASE):
+            return re.sub(
+                r'(<head[^>]*>)',
+                r'\1\n' + new_meta,
+                html_content,
+                count=1,
+                flags=re.IGNORECASE
+            )
+        match = re.search(r'<html[^>]*>', html_content, re.IGNORECASE)
+        if match:
+            head = '\n<head>\n' + new_meta + '\n</head>'
+            return html_content[:match.end()] + head + html_content[match.end():]
+        return new_meta + '\n' + html_content
 
     def _embed_images(self, html_content: str) -> str:
         for part in self.msg.walk():
@@ -329,14 +335,23 @@ class EmlToHtmlConverter:
             '</table>\n<hr>\n'
         )
 
-    @staticmethod
-    def _safe_filename(name: str, fallback: str = 'piece-jointe') -> str:
+    DANGEROUS_EXTENSIONS: ClassVar[frozenset] = frozenset(
+        {'html', 'htm', 'xhtml', 'svg', 'xml', 'mht', 'mhtml'}
+    )
+
+    @classmethod
+    def _safe_filename(cls, name: str, fallback: str = 'piece-jointe') -> str:
         name = html_module.unescape(name or '')
         name = name.replace('\\', '/')
         name = name.split('/')[-1].strip()
         name = re.sub(r'[\x00-\x1f\x7f"*/:<>?|]', '_', name)
         name = name.strip('. ')
-        return name or fallback
+        if not name:
+            return fallback
+        extension = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+        if extension in cls.DANGEROUS_EXTENSIONS:
+            name += '.txt'
+        return name
 
     @staticmethod
     def _human_size(size: int) -> str:
@@ -472,7 +487,7 @@ class EmlToHtmlConverter:
         return str(html_file)
 
 
-def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bool = False,
+def batch_convert(input_dir: str, output_dir: Optional[str] = None, sanitize: bool = True,
                    extract_attachments: bool = False, recursive: bool = False):
     """Convertit tous les fichiers .eml d'un dossier. Retourne (réussis, échecs).
 
@@ -523,11 +538,19 @@ def main():
     parser.add_argument('path', help="Chemin d'un fichier .eml ou d'un dossier")
     parser.add_argument('-o', '--output', help="Fichier ou dossier de sortie", default=None)
     parser.add_argument(
-        '--sanitize',
-        action='store_true',
-        help="Retire les éléments actifs du HTML de sortie (scripts, handlers, "
-             "iframes, URI javascript:) — recommandé pour des emails non fiables"
+        '--no-sanitize',
+        dest='sanitize',
+        action='store_false',
+        help="Désactive la sanitization du HTML de sortie (déconseillé pour des emails "
+             "de source non fiable)"
     )
+    parser.add_argument(
+        '--sanitize',
+        dest='sanitize',
+        action='store_true',
+        help="Obsolète : la sanitization est désormais active par défaut"
+    )
+    parser.set_defaults(sanitize=True)
     parser.add_argument(
         '--extract-attachments',
         action='store_true',
