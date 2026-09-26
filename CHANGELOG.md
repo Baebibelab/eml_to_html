@@ -5,6 +5,8 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Non publié]
 
+## [2.6.0] - 2026-09-26
+
 ### Sécurité
 - Durcissement du sanitizer (`--no-sanitize` pour le désactiver) :
   - `srcset` : chaque URL de la liste est vérifiée individuellement (une seule URL
