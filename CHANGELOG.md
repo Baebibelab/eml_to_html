@@ -12,6 +12,22 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 - Workflow GitHub Actions `publish.yml` : tests + build + publication automatique
   sur PyPI au push d'un tag `v*` (secret `PYPI_API_TOKEN` requis)
 
+### Sécurité
+- **Sanitization active par défaut** : le HTML de sortie est nettoyé automatiquement
+  (CLI, `EmlToHtmlConverter` et `batch_convert`), sans besoin du flag `--sanitize` —
+  ouvrir le HTML d'un email non fiable n'exécute plus ses scripts. Nouveau flag
+  `--no-sanitize` pour la désactiver sur des sources de confiance ; l'ancien flag
+  `--sanitize` reste accepté (no-op) pour ne pas casser les scripts existants
+- `--extract-attachments` : les pièces jointes aux extensions actives
+  (`.html`, `.htm`, `.xhtml`, `.svg`, `.xml`, `.mht`, `.mhtml`) sont renommées avec un
+  suffixe `.txt` pour éviter l'exécution de leur contenu à l'ouverture ; le lien de
+  téléchargement pointe vers le fichier renommé
+
+### Corrigé
+- La balise `<meta charset>` est désormais injectée même quand le HTML de l'email n'a
+  pas de balise `<head>` (création d'un `<head>` après `<html>`, ou préfixage du
+  contenu si `<html>` est absent) — corrige les mojibake à l'affichage
+
 ## [2.3.0] - Fusionné
 
 ### Ajouté

@@ -60,6 +60,20 @@ class TestHtmlBody:
         result = EmlToHtmlConverter(eml_path).convert()
         assert 'charset=UTF-8' in result
 
+    def test_meta_inserted_when_no_head_tag(self, tmp_path):
+        msg = make_html_eml('<html><body><p>café</p></body></html>')
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert 'charset=UTF-8' in result
+        assert '<head>' in result
+
+    def test_meta_prepended_when_no_html_tag(self, tmp_path):
+        msg = make_html_eml('<body><p>café</p></body>')
+        eml_path = write_eml(tmp_path, msg)
+        result = EmlToHtmlConverter(eml_path).convert()
+        assert 'charset=UTF-8' in result
+        assert result.index('charset=UTF-8') < result.index('<body')
+
 
 class TestPlainBody:
     def test_plain_wrapped_in_html(self, tmp_path):
@@ -331,10 +345,16 @@ class TestSanitizer:
         assert 'style="color: red"' in result
         assert 'charset=UTF-8' in result
 
-    def test_disabled_by_default(self, tmp_path):
+    def test_enabled_by_default(self, tmp_path):
         html_body = '<html><head></head><body><script>alert(1)</script></body></html>'
         eml_path = write_eml(tmp_path, self._eml_with(html_body))
         result = EmlToHtmlConverter(eml_path).convert()
+        assert '<script>' not in result
+
+    def test_no_sanitize_opt_out(self, tmp_path):
+        html_body = '<html><head></head><body><script>alert(1)</script></body></html>'
+        eml_path = write_eml(tmp_path, self._eml_with(html_body))
+        result = EmlToHtmlConverter(eml_path, sanitize=False).convert()
         assert '<script>alert(1)</script>' in result
 
     def test_cid_images_embedded_then_sanitized(self, tmp_path):
@@ -355,7 +375,15 @@ class TestSanitizer:
         assert 'src="data:image/png;base64,' in result
         assert 'onerror' not in result
 
-    def test_cli_flag(self, tmp_path, monkeypatch):
+    def test_cli_no_sanitize_flag(self, tmp_path, monkeypatch):
+        html_body = '<html><head></head><body><script>alert(1)</script></body></html>'
+        eml_path = write_eml(tmp_path, self._eml_with(html_body))
+        monkeypatch.setattr(sys, 'argv', ['eml_to_html.py', str(eml_path), '--no-sanitize'])
+        assert eml_to_html_main() == 0
+        out = (tmp_path / 'test.html').read_text(encoding='utf-8')
+        assert '<script>alert(1)</script>' in out
+
+    def test_cli_sanitize_still_accepted(self, tmp_path, monkeypatch):
         html_body = '<html><head></head><body><script>alert(1)</script></body></html>'
         eml_path = write_eml(tmp_path, self._eml_with(html_body))
         monkeypatch.setattr(sys, 'argv', ['eml_to_html.py', str(eml_path), '--sanitize'])
@@ -488,6 +516,32 @@ class TestAttachments:
         assert (tmp_path / 'a_pieces-jointes' / 'f.pdf').exists()
         html_out = (tmp_path / 'a.html').read_text(encoding='utf-8')
         assert 'télécharger' in html_out
+
+    def test_active_attachments_renamed_on_extract(self, tmp_path):
+        for filename in ('page.html', 'image.svg'):
+            msg = self._eml_with_attachment(
+                '<html><head></head><body><p>Corps</p></body></html>',
+                filename, content=b'<script>alert(1)</script>', subtype='octet-stream'
+            )
+            eml_path = write_eml(tmp_path, msg, name=f'{filename}.eml')
+            converter = EmlToHtmlConverter(eml_path, extract_attachments=True)
+            converter.save(tmp_path / f'{filename}.out.html')
+        extracted = sorted(p.name for p in (tmp_path / 'page.html.out_pieces-jointes').iterdir())
+        assert extracted == ['page.html.txt']
+        extracted = sorted(p.name for p in (tmp_path / 'image.svg.out_pieces-jointes').iterdir())
+        assert extracted == ['image.svg.txt']
+        assert not (tmp_path / 'page.html.out_pieces-jointes' / 'page.html').exists()
+
+    def test_dangerous_extension_renaming_not_case_sensitive(self, tmp_path):
+        msg = self._eml_with_attachment(
+            '<html><head></head><body><p>Corps</p></body></html>',
+            'PAGE.HTML', content=b'<b>x</b>', subtype='octet-stream'
+        )
+        eml_path = write_eml(tmp_path, msg)
+        converter = EmlToHtmlConverter(eml_path, extract_attachments=True)
+        converter.save(tmp_path / 'out.html')
+        extracted = [p.name for p in (tmp_path / 'out_pieces-jointes').iterdir()]
+        assert extracted == ['PAGE.HTML.txt']
 
 
 class TestPackaging:
