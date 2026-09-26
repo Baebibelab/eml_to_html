@@ -127,7 +127,9 @@ scripts qu'il contient. Utilisez `--no-sanitize` uniquement pour des sources de 
 |---|---|
 | `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>`, `<link>` | Mise en page, tableaux, styles inoffensifs |
 | Attributs `on...` (`onclick`, `onerror`, ...) | Images inline en base64 (`data:image/...`) |
-| URI `javascript:`, `vbscript:`, `data:text/html` | Liens `http(s):`, `mailto:` |
+| URI `javascript:`, `vbscript:`, data URIs hors liste blanche (`data:image/svg+xml`,
+  `data:text/html`), URL dangereuse dans `srcset` | Liens `http(s):`, `mailto:`,
+  images inline `data:image/png|jpeg|gif|bmp|webp` |
 | `<meta http-equiv="refresh">`, CSS `expression()` | Balise `<meta charset>` corrigée |
 
 Le texte visible est toujours préservé. Recommandé pour tout email de source non fiable.
@@ -178,6 +180,7 @@ succeeded, failed = batch_convert('dossier/')
 eml_to_html/
 ├── eml_to_html.py       # Script principal
 ├── tests/               # Suite de tests pytest
+├── examples/           # Emails de démo pour test manuel (voir examples/README.md)
 ├── .github/workflows/   # CI (ruff + pytest)
 ├── pyproject.toml       # Configuration ruff / pytest
 ├── README.md            # Documentation
@@ -185,6 +188,13 @@ eml_to_html/
 ├── CHANGELOG.md         # Historique des versions
 └── .gitignore           # Fichiers ignorés par Git
 ```
+
+## 🧪 Tester avec des emails de démo
+
+Le dossier [`examples/`](examples/) contient trois emails **synthétiques et inoffensifs**
+pour tester l'outil en conditions réelles avant d'utiliser vos propres emails :
+sanitization, charset sans `<head>`, pièces jointes actives. Chaque démo a sa
+checklist de points de contrôle — voir [`examples/README.md`](examples/README.md).
 
 ## ⚙️ Fonctionnement technique
 

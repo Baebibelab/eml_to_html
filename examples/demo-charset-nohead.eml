@@ -1,0 +1,12 @@
+From: expediteur@example.com
+To: destinataire@example.com
+Subject: Demo 2 - charset sans head
+Date: Fri, 26 Sep 2026 10:01:00 +0200
+MIME-Version: 1.0
+Content-Type: text/html; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+
+<html><body>
+<h1>Demo charset sans head</h1>
+<p>Texte avec accents : éèê ç à ù ... le rendu doit etre correct (pas de caracteres bizarres).</p>
+</body></html>

@@ -5,6 +5,25 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Non publié]
 
+### Sécurité
+- Durcissement du sanitizer (`--no-sanitize` pour le désactiver) :
+  - `srcset` : chaque URL de la liste est vérifiée individuellement (une seule URL
+    dangereuse retire l'attribut entier)
+  - Data URIs restreintes à une liste blanche (`data:image/png|jpeg|gif|bmp|webp`) ;
+    `data:image/svg+xml` et `data:text/html` sont bloqués
+  - Le contenu des balises `<style>` n'est plus échappé en HTML (les sélecteurs CSS
+    comme `a > b` ne sont plus corrompus) ; il est nettoyé des constructions actives
+    (`expression()`, `javascript:`) et des tentatives de sortie de balise (`</style`),
+    avec fermeture automatique de `<style>` si la balise d'origine est mal formée
+  - Le nettoyage CSS ne s'applique plus au texte visible : un texte légitime contenant
+    `javascript:` n'est plus altéré
+
+### Ajouté
+- Dossier `examples/` : trois emails de démonstration synthétiques et inoffensifs
+  (sanitization, charset sans `<head>`, pièces jointes actives) avec checklists de
+  points de contrôle, pour tester l'outil en conditions réelles avant d'utiliser
+  ses propres emails — voir `examples/README.md`
+
 ## [2.5.0] - 2026-09-26
 
 ### Sécurité
