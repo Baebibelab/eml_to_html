@@ -5,6 +5,11 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
 ## [Non publié]
 
+### Ajouté
+- Liens du projet sur la page PyPI (`[project.urls]` : Homepage, Issues, Changelog)
+- CI : la matrix de tests couvre désormais toutes les versions Python annoncées
+  (3.8 à 3.13, contre 3.9/3.11/3.13 auparavant)
+
 ## [2.6.0] - 2026-09-26
 
 ### Sécurité

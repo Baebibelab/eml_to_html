@@ -32,6 +32,11 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/Baebibelab/eml_to_html"
+Issues = "https://github.com/Baebibelab/eml_to_html/issues"
+Changelog = "https://github.com/Baebibelab/eml_to_html/blob/main/CHANGELOG.md"
+
 [project.scripts]
 eml2html = "eml_to_html:main"
 eml-to-html = "eml_to_html:main"
