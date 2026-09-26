@@ -3,14 +3,7 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
 
-## [2.4.0] - Non publié
-
-### Ajouté
-- Publication PyPI sous le nom `eml2html` (`eml-to-html` était déjà pris sur PyPI) :
-  `pip install eml2html`
-- Commande `eml2html` ; l'alias `eml-to-html` reste installé
-- Workflow GitHub Actions `publish.yml` : tests + build + publication automatique
-  sur PyPI au push d'un tag `v*` (secret `PYPI_API_TOKEN` requis)
+## [2.5.0] - Non publié
 
 ### Sécurité
 - **Sanitization active par défaut** : le HTML de sortie est nettoyé automatiquement
@@ -28,6 +21,13 @@ Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/).
   pas de balise `<head>` (création d'un `<head>` après `<html>`, ou préfixage du
   contenu si `<html>` est absent) — corrige les mojibake à l'affichage
 
+## [2.4.0] - 2026-09-23
+
+### Ajouté
+- Publication PyPI sous le nom `eml2html` (`eml-to-html` était déjà pris sur PyPI) :
+  `pip install eml2html`
+- Commande `eml2html` ; l'alias `eml-to-html` reste installé
+- Workflow GitHub Actions `publish.yml` : tests + build + publication automatique
 ## [2.3.0] - Fusionné
 
 ### Ajouté
